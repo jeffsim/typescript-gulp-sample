@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta http-equiv="content-type" content="text/html;charset=utf-8">
+    <title>Duality Tests</title>
+
+    <!-- Jasmine (testing) related scripts
+         NOTE: This requires that you've done the following from terminal: npm install jasmine
+         If you installed jasmine globally then tweak the src tags accordingly.  If Jasmine has changed since
+         I wrote this, or the includes otherwise don't work, then just try http://bit.ly/2gUKQg7
+         
+         TODO: what's the 'right' way to do this?  I don't want to install it into a 'tools' folder
+         because I want npm install to handle that for me. Hm.
+    -->
+    <link rel="stylesheet" href="../node_modules/jasmine-core/lib/jasmine-core/jasmine.css">
+    <script src="../node_modules/jasmine-core/lib/jasmine-core/jasmine.js"></script>
+    <script src="../node_modules/jasmine-core/lib/jasmine-core/jasmine-html.js"></script>
+    <script src="../node_modules/jasmine-core/lib/jasmine-core/boot.js"></script>
+</head>
+
+<body>
+    <!-- Load jQuery. TODO: Duality editor relies on it, so app *has* to include it.  Reeeeaally don't want
+         to do that; so either concat jquery into duality*.js, or remove the dependency entirely 
+         TODO: Look up what jquery's preferred approach is for situations like this.  is it okay to concat? -->     
+    <script src="editor/lib/jquery-2.1.4.js"></script>
+
+    <!-- Load Duality -->
+    <script src="dist/duality-0.0.1.debug.js"></script>
+
+    <!-- Load non-built-in Duality plugins -->
+    <script src="dist/threejs-debug.js"></script>
+
+    <!-- Load tests -->
+    <script src='/tests/test1/test1.spec.js'></script>
+    <script src='/tests/test2/test2.spec.js'></script>
+
+</body>
+
+</html>

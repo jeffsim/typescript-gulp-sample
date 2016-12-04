@@ -1,0 +1,31 @@
+
+{
+    // See http://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "0.1.0",
+    "isShellCommand": true,
+
+    "args": [
+        "--no-color"
+    ],
+    "command": "gulp",
+    "tasks": [
+        {
+            "taskName": "build-duality",
+            "args": [],
+            "isBuildCommand": true,
+            "isWatching": false,
+            "problemMatcher": [
+                "$tsc"
+            ]
+        },{
+            "taskName": "rebuild-all-duality",
+            "args": [],
+            "isBuildCommand": true,
+            "isWatching": false,
+            "problemMatcher": [
+                "$tsc"
+            ]
+        }
+    ]
+}

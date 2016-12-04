@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug (run against root)",
+            "type": "chrome",
+            "request": "launch",
+            "url": "http://127.0.0.1:1024/samples/testApp2/index.html",
+//            "url": "http://127.0.0.1:1024/tests.html",
+            "sourceMaps": true,
+            "webRoot": "${workspaceRoot}",
+            // "diagnosticLogging": true,
+            "runtimeArgs": [
+                "--disable-session-crashed-bubble",
+                "--disable-infobars"
+            ]
+        }
+    ]
+}

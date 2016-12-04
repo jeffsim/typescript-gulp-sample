@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+
+    <!-- Load jQuery. TODO: Duality editor relies on it, so app *has* to include it.  Reeeeaally don't want
+         to do that; so either concat jquery into duality*.js, or remove the dependency entirely 
+         TODO: Look up what jquery's preferred approach is for situations like this.  is it okay to concat? -->     
+    <script src="lib/jquery-2.1.4.js"></script>
+
+    <!-- To core duality lib which includes the editor and all built-in plugins -->
+    <script src="/dist/duality-0.0.1.min.js"></script>
+
+    <!-- including a non-built-in plugin -->
+    <script src="lib/threejs-min.js"></script>
+
+    <!-- Test js file to ensure raw js works as expected -->
+    <script src="testJS.js"></script>
+
+    <!-- Test plugin created by/for this sample -->
+    <script src="testApp2plugin/testPlugin.js"></script>
+    
+    <!-- The main test app -->
+    <script src="testApp2.js"></script>
+</head>
+
+<body>
+    I AM TESTAPP 2
+</body>
+
+</html>

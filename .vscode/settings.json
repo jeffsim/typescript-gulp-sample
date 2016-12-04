@@ -1,0 +1,25 @@
+// Place your settings in this file to overwrite default and user settings.
+{
+    "files.exclude": {
+        "**/.git*": true,
+        "samples/**/*.js": { "when": "$(basename).ts" },
+        "samples/**/*.js.map": true,
+        "tests/**/*.js": { "when": "$(basename).ts" },
+        "tests/**/*.js.map": true,
+        "node_modules": true,
+        "favicon.ico": true
+    },
+    "editor.mouseWheelZoom": false,
+    "editor.autoClosingBrackets": false,
+    "editor.autoClosingQuotes": false,
+    "editor.rulers": [
+        120
+    ],
+    "typescript.tsdk": "./node_modules/typescript/lib",
+    "vscode-stocks.stockSymbols": [
+        "msft",
+        "aapl",
+        "sq"
+    ],
+    "vscode-stocks.useColors": true
+}
