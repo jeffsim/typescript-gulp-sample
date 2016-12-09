@@ -58,14 +58,7 @@ var editor = {
         name: "editor",
         path: "editor",
         files: [
-            // NOTE: order matters as base classes need to be compiled before derived classes.
-            // NOTE: The "**/" is needed in order to get the 'controls/' part into the path for the sourcemap.
-            // If you remove it, then you won't be able to debug as the sourcemap drops the subfolder entirely.
-            // NOTE: It's apparently by-design that gulp flattens folder hierarchies when globs aren't used (?!).  See:
-            // https://github.com/gulpjs/gulp/issues/151
-            "**/controls/Visual.ts",
-            "**/controls/Label.ts",
-            "**/controls/TextBox.ts",
+            "controls/Visual.ts", "controls/Label.ts", "controls/TextBox.ts",
             "Editor.ts",
             "typings/*.d.ts",
         ]
@@ -186,7 +179,7 @@ function buildLib(project, projectGroup) {
         filesToCompile.push(projectFolderName + projectFile);
 
     var ts = tsc.createProject(joinPath(project.path, "tsconfig.json"));
-    return gulp.src(filesToCompile)
+    return gulp.src(filesToCompile, { base: project.path })
         .pipe(gulpIf(settings.incrementalBuild, changedInPlace()))
         .pipe(sourcemaps.init())
         .pipe(ts())
@@ -207,7 +200,7 @@ function minifyLib(project) {
         .pipe(sourcemaps.init({ loadMaps: true }))
         .pipe(rename(project.name + "-min.js"))
         .pipe(uglify())
-        .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: "/"}))
+        .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: "/" }))
         .pipe(gulp.dest(joinPath("dist", project.path)))
         .pipe(gulp.dest("dist/all"))
         .on("end", () => outputTaskEnd("minifyLib", project, startTime));
@@ -271,13 +264,12 @@ function buildAppProject(project, projectGroup) {
         filesToCompile.push(projectFolderName + projectFile);
 
     // Transpile the project's Typescript into Javascript
-    return gulp.src(filesToCompile)
+    return gulp.src(filesToCompile, { base: project.path })
         .pipe(gulpIf(settings.incrementalBuild, changedInPlace()))
         .pipe(sourcemaps.init())
         .pipe(ts())
         .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: rootPath }))
-        // NOTE: Need to return file.base so that path hierarchy is maintained. See: https://github.com/gulpjs/gulp/issues/151
-        .pipe(gulp.dest(function (file) { return file.base; }))
+        .pipe(gulp.dest(projectFolderName))
         .on("end", () => outputTaskEnd("buildAppProject", project, startTime));
 }
 
@@ -305,7 +297,7 @@ function buildBundledJS() {
     return buildBundle(sourceFiles, false);
 }
 
-// Takes the pre-built duality*-debug.js file and bundle/minify it into duality*-min.js
+// Take the pre-built duality*-debug.js file and bundle/minify it into duality*-min.js
 function minifyBundledJS() {
     return buildBundle(["dist/" + dualityDebugFileName], true);
 }
@@ -313,7 +305,9 @@ function minifyBundledJS() {
 // This is passed in one or more already built files (with corresponding sourcemaps); it bundles them into just
 // one file and minifies if so requested.
 function buildBundle(sourceFiles, minify) {
-    return gulp.src(sourceFiles)
+    var options = minify ? {base:"/"} : {};
+
+    return gulp.src(sourceFiles, options)
         .pipe(gulpIf(settings.incrementalBuild, changedInPlace()))
         .pipe(sourcemaps.init({ loadMaps: true }))
         .pipe(gulpIf(minify, uglify()))
@@ -474,7 +468,6 @@ function buildProjectGroup(projectGroup) {
 
 // Main build function; builds editor, plugins, tests, and samples; also bundles editor and plugins into duality*.js
 function buildDuality() {
-    return clean();
     return runSeries([
         // editor, plugins, and bundle must be built in order
         () => buildProjectGroup(editor),
@@ -490,10 +483,9 @@ function buildDuality() {
 
 // Does a complete rebuild
 gulp.task("rebuild-all-duality", function () {
-
     // Don't do an incremental build
     settings.incrementalBuild = false;
-    
+
     // Clean and then build.
     return runSeries([
         () => clean(),
@@ -505,4 +497,3 @@ gulp.task("rebuild-all-duality", function () {
 gulp.task("build-duality", function () {
     return buildDuality();
 });
-
