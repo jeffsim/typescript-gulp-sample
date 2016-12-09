@@ -177,7 +177,6 @@ function buildLib(project, projectGroup) {
     // Rebase passed-in file names so that they are within the project folder
     for (var projectFile of project.files)
         filesToCompile.push(projectFolderName + projectFile);
-
     var ts = tsc.createProject(joinPath(project.path, "tsconfig.json"));
     return gulp.src(filesToCompile, { base: project.path })
         .pipe(gulpIf(settings.incrementalBuild, changedInPlace()))
@@ -305,15 +304,19 @@ function minifyBundledJS() {
 // This is passed in one or more already built files (with corresponding sourcemaps); it bundles them into just
 // one file and minifies if so requested.
 function buildBundle(sourceFiles, minify) {
-    var options = minify ? {base:"/"} : {};
-
-    return gulp.src(sourceFiles, options)
+    return gulp.src(sourceFiles)
         .pipe(gulpIf(settings.incrementalBuild, changedInPlace()))
         .pipe(sourcemaps.init({ loadMaps: true }))
         .pipe(gulpIf(minify, uglify()))
         .pipe(gulpIf(!minify, concat(dualityDebugFileName)))
         .pipe(gulpIf(minify, rename(minify ? dualityMinFileName : dualityDebugFileName)))
-        .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: "/" }))
+        .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: "/", 
+    
+            // TODO: one hack still needed - the 'sources' field in the bundled sourcemap by default has
+            // a leading slash; but chrome fails to find the sourcemap in that case.  I can't find the
+            // right combination of src.base, file paths, etc to get it to work,
+            // so just removing the slash manually via mapSources.
+            mapSources: (path) => path.substr(1) }))
         .pipe(gulp.dest("dist"));
 }
 
