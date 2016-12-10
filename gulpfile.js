@@ -496,6 +496,5 @@ gulp.task("rebuild-all-duality", function() {
 
 // Builds duality
 gulp.task("build-duality", function() {
-    settings.incrementalBuild = false;
     return buildDuality();
 });
