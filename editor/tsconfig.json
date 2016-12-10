@@ -8,6 +8,7 @@
         "noImplicitAny": false,
         "removeComments": true,
         "noLib": false,
+        "outFile": "willGetRenamedAnyways.js",
         "allowJs": true,
         "preserveConstEnums": true,
         "suppressImplicitAnyIndexErrors": true

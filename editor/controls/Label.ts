@@ -1,3 +1,5 @@
+/// <reference path="Visual.ts"/>
+
 namespace Duality {
     export class Label extends Visual {
         constructor() {

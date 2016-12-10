@@ -22,6 +22,9 @@ var settings = {
     incrementalBuild: true,
 };
 
+// TODOs:
+// Update to support globs in filesToPrecopyToAllProjects and commonFiles
+
 
 // ====================================================================================================================
 // ======= PROJECTS ===================================================================================================
@@ -57,11 +60,7 @@ var editor = {
     projects: [{
         name: "editor",
         path: "editor",
-        files: [
-            "controls/Visual.ts", "controls/Label.ts", "controls/TextBox.ts",
-            "Editor.ts",
-            "typings/*.d.ts",
-        ]
+        files: [ "**/*.ts" ]
     }]
 }
 
@@ -183,7 +182,7 @@ function buildLib(project, projectGroup) {
         .pipe(sourcemaps.init())
         .pipe(ts())
         .pipe(concat(project.name + "-debug.js"))
-        .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: joinPath("/", project.path) }))
+        .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: "/" }))
         .pipe(gulp.dest("bld"))
         .on("end", () => outputTaskEnd("buildLib", project, startTime));
 }
@@ -198,13 +197,7 @@ function minifyLib(project) {
         .pipe(sourcemaps.init({ loadMaps: true }))
         .pipe(rename(project.name + "-min.js"))
         .pipe(uglify())
-        .pipe(sourcemaps.write(".", {
-            includeContent: false, sourceRoot: "/" + project.path,
-
-            // Something deep in the bowels of gulp-uglify is forcibly combining the abs and rel source paths; I need
-            // to continue to maintain the separation, so forcibly uncombine them here.
-            mapSources: (path) => path.substr(project.path.length + 2)
-        }))
+        .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: "/" }))
         .pipe(gulp.dest("bld"))
         .on("end", () => outputTaskEnd("minifyLib", project, startTime));
 }
@@ -482,8 +475,8 @@ function buildDuality() {
         () => buildProjectGroup(plugins),
         () => bundleEditorAndPlugins(),
         // side note: tests and samples could be built in parallel (so: use () => eventStream.merge([...])) - but
-        // perf diff isn't noticable, and it messes up my pretty, pretty output.  So: if you have a lot of tests and
-        // samples (... and typescript is actually doing multi-proc transpilation) then consider parallelizing these.
+        // perf diff isn't noticable here, and it messes up my pretty, pretty output.  So: if you have a lot of tests
+        // and samples (... and typescript is actually doing multi-proc transpilation) then consider parallelizing these
         () => buildProjectGroup(tests),
         () => buildProjectGroup(samples)
     ]);
@@ -503,5 +496,6 @@ gulp.task("rebuild-all-duality", function() {
 
 // Builds duality
 gulp.task("build-duality", function() {
+    settings.incrementalBuild = false;
     return buildDuality();
 });
