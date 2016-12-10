@@ -312,10 +312,11 @@ function buildBundle(sourceFiles, minify) {
         .pipe(gulpIf(minify, rename(dualityMinFileName)))
         .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: "/", 
     
-            // TODO: one hack still needed - the 'sources' field in the bundled sourcemap by default has
-            // a leading slash; but chrome fails to find the sourcemap in that case.  I can't find the
-            // right combination of src.base, file paths, etc to get it to work,
-            // so just removing the slash manually via mapSources.
+            // TODO: one hack still needed - the filepath entries in the 'sources' field in the bundled sourcemap
+            // have leading slashs; but vscode's chrome debugger plugin fails to find the source files in that case.
+            // Note that it works fine in Chrome's debugger.  I'm fairly certain it has to do with relative and absolute
+            // paths in the pre-bundled sourcemaps, but can't quite figure it out, so just removing the slash 
+            // manually via mapSources for now.
             mapSources: (path) => path.substr(1) }))
         .pipe(gulp.dest("dist"));
 }
