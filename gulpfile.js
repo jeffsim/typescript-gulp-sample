@@ -184,8 +184,7 @@ function buildLib(project, projectGroup) {
         .pipe(ts())
         .pipe(concat(project.name + "-debug.js"))
         .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: joinPath("/", project.path) }))
-        .pipe(gulp.dest(joinPath("dist", project.path)))
-        .pipe(gulp.dest("dist/all"))
+        .pipe(gulp.dest("bld"))
         .on("end", () => outputTaskEnd("buildLib", project, startTime));
 }
 
@@ -194,14 +193,19 @@ function buildLib(project, projectGroup) {
 function minifyLib(project) {
     var startTime = outputTaskStart("minifyLib", project);
 
-    return gulp.src(["dist/all/" + project.name + "-debug.js"])
+    return gulp.src(["bld/" + project.name + "-debug.js"])
         .pipe(gulpIf(settings.incrementalBuild, changedInPlace()))
         .pipe(sourcemaps.init({ loadMaps: true }))
         .pipe(rename(project.name + "-min.js"))
         .pipe(uglify())
-        .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: "/" }))
-        .pipe(gulp.dest(joinPath("dist", project.path)))
-        .pipe(gulp.dest("dist/all"))
+        .pipe(sourcemaps.write(".", {
+            includeContent: false, sourceRoot: "/" + project.path,
+
+            // Something deep in the bowels of gulp-uglify is forcibly combining the abs and rel source paths; I need
+            // to continue to maintain the separation, so forcibly uncombine them here.
+            mapSources: (path) => path.substr(project.path.length + 2)
+        }))
+        .pipe(gulp.dest("bld"))
         .on("end", () => outputTaskEnd("minifyLib", project, startTime));
 }
 
@@ -288,10 +292,10 @@ function bundleEditorAndPlugins() {
 
 function buildBundledJS() {
     // Start by adding duality editor to list of files to concat; then add all built-in plugins to list of files
-    var sourceFiles = ["dist/all/editor-debug.js"];
+    var sourceFiles = ["bld/editor-debug.js"];
     for (var plugin of plugins.projects)
         if (plugin.isBuiltIn)
-            sourceFiles.push("dist/all/" + plugin.name + "-debug.js");
+            sourceFiles.push("bld/" + plugin.name + "-debug.js");
 
     return buildBundle(sourceFiles, false);
 }
@@ -307,17 +311,16 @@ function buildBundle(sourceFiles, minify) {
     return gulp.src(sourceFiles)
         .pipe(gulpIf(settings.incrementalBuild, changedInPlace()))
         .pipe(sourcemaps.init({ loadMaps: true }))
-        .pipe(gulpIf(minify, uglify()))
         .pipe(gulpIf(!minify, concat(dualityDebugFileName)))
         .pipe(gulpIf(minify, rename(dualityMinFileName)))
-        .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: "/", 
-    
-            // TODO: one hack still needed - the filepath entries in the 'sources' field in the bundled sourcemap
-            // have leading slashs; but vscode's chrome debugger plugin fails to find the source files in that case.
-            // Note that it works fine in Chrome's debugger.  I'm fairly certain it has to do with relative and absolute
-            // paths in the pre-bundled sourcemaps, but can't quite figure it out, so just removing the slash 
-            // manually via mapSources for now.
-            mapSources: (path) => path.substr(1) }))
+        .pipe(gulpIf(minify, uglify()))
+        .pipe(sourcemaps.write(".", {
+            includeContent: false, sourceRoot: "/",
+
+            // The sourceRoot and sources' paths from the source files are getting flattened; I need to maintain them
+            // separately, so forcibly remove the source root (a slash).
+            mapSources: (path) => path.substr(1)
+        }))
         .pipe(gulp.dest("dist"));
 }
 
@@ -339,7 +342,8 @@ function buildBundledDTS() {
 function clean() {
     var startTime = outputTaskStart("clean");
     return del([
-        // Delete dist
+        // Delete dist and bld
+        "bld",
         "dist",
 
         // Delete all sourcemaps, everywhere
@@ -486,7 +490,7 @@ function buildDuality() {
 }
 
 // Does a complete rebuild
-gulp.task("rebuild-all-duality", function () {
+gulp.task("rebuild-all-duality", function() {
     // Don't do an incremental build
     settings.incrementalBuild = false;
 
@@ -498,6 +502,6 @@ gulp.task("rebuild-all-duality", function () {
 });
 
 // Builds duality
-gulp.task("build-duality", function () {
+gulp.task("build-duality", function() {
     return buildDuality();
 });
