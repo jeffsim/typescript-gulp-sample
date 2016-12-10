@@ -309,7 +309,7 @@ function buildBundle(sourceFiles, minify) {
         .pipe(sourcemaps.init({ loadMaps: true }))
         .pipe(gulpIf(minify, uglify()))
         .pipe(gulpIf(!minify, concat(dualityDebugFileName)))
-        .pipe(gulpIf(minify, rename(minify ? dualityMinFileName : dualityDebugFileName)))
+        .pipe(gulpIf(minify, rename(dualityMinFileName)))
         .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: "/", 
     
             // TODO: one hack still needed - the 'sources' field in the bundled sourcemap by default has
