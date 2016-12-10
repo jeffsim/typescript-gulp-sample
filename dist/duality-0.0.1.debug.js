@@ -1,3 +1,8 @@
+var __extends = (this && this.__extends) || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+};
 var Duality;
 (function (Duality) {
     var Visual = (function () {
@@ -11,12 +16,6 @@ var Duality;
     }());
     Duality.Visual = Visual;
 })(Duality || (Duality = {}));
-
-var __extends = (this && this.__extends) || function (d, b) {
-    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-    function __() { this.constructor = d; }
-    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-};
 var Duality;
 (function (Duality) {
     var Label = (function (_super) {
@@ -32,12 +31,6 @@ var Duality;
     }(Duality.Visual));
     Duality.Label = Label;
 })(Duality || (Duality = {}));
-
-var __extends = (this && this.__extends) || function (d, b) {
-    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-    function __() { this.constructor = d; }
-    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-};
 var Duality;
 (function (Duality) {
     var TextBox = (function (_super) {
@@ -51,12 +44,6 @@ var Duality;
     }(Duality.Visual));
     Duality.TextBox = TextBox;
 })(Duality || (Duality = {}));
-
-var __extends = (this && this.__extends) || function (d, b) {
-    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-    function __() { this.constructor = d; }
-    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-};
 var Duality;
 (function (Duality) {
     var Editor = (function (_super) {

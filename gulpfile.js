@@ -22,9 +22,6 @@ var settings = {
     incrementalBuild: true,
 };
 
-// TODOs:
-// Update to support globs in filesToPrecopyToAllProjects and commonFiles
-
 
 // ====================================================================================================================
 // ======= PROJECTS ===================================================================================================
@@ -49,6 +46,7 @@ var settings = {
 //      name: string            Name of the project
 //      path: string            Path of the project relative to root
 //      files: string[]         List of files to compile; relative to project path.
+//                              If unspecified, defaults to '["**/*.ts"]', which == all TS files in the project folder.
 //
 // NOTE: each ProjectGroup can also define its own additional properties; e.g. the editor ProjectGroup includes version
 
@@ -75,21 +73,17 @@ var plugins = {
     isLibrary: true,
     // All projects in this group have these files copied into their sample folders.  Built files typically go here.
     filesToPrecopyToAllProjects: [{ src: "dist/typings/editor.d.ts", dest: "typings" }],
-    commonFiles: ["dist/typings/editor.d.ts"],
     projects: [{
         name: "debugDuality",
         path: "plugins/duality/debugDualityPlugin",
-        files: ["plugin.ts"],
         isBuiltIn: true,
     }, {
         name: "debugDuality2",
         path: "plugins/duality/debugPlugin2",
-        files: ["plugin2.ts"],
         isBuiltIn: true,
     }, {
         name: "threejs",
         path: "plugins/threeJS",
-        files: ["pluginTJS.ts"],
         isBuiltIn: false,
     }]
 };
@@ -104,11 +98,9 @@ var tests = {
     projects: [{
         name: "test1",
         path: "tests/test1",
-        files: ["test1.spec.ts"],
     }, {
         name: "test2",
         path: "tests/test2",
-        files: ["test2.spec.ts"]
     }]
 };
 
@@ -118,15 +110,12 @@ var samples = {
     isLibrary: false,
     // All projects in this group have these files copied into their sample folders.  Built files typically go here.
     filesToPrecopyToAllProjects: [{ src: "dist/typings/" + dualityTypingFileName, dest: "typings" }],
-    commonFiles: ["dist/typings/" + dualityTypingFileName],
     projects: [{
         name: "testApp",
         path: "samples/testApp",
-        files: ["testApp.ts"],
     }, {
         name: "testApp2",
         path: "samples/testApp2",
-        files: ["testApp2.ts", "testApp2plugin/testPlugin.ts", "typings/threejs.d.ts", "typings/jquery.d.ts"],
         filesToPrecopy: [
             // This test uses the threeJS plugin that we build, so copy the .js into ./lib and the d.ts into ./typings
             { src: "dist/typings/threejs.d.ts", dest: "typings" },
@@ -174,7 +163,8 @@ function buildLib(project, projectGroup) {
             filesToCompile.push(projectFile);
 
     // Rebase passed-in file names so that they are within the project folder
-    for (var projectFile of project.files)
+    var files = project.files || ["**/*.ts"];
+    for (var projectFile of files)
         filesToCompile.push(projectFolderName + projectFile);
     var ts = tsc.createProject(joinPath(project.path, "tsconfig.json"));
     return gulp.src(filesToCompile, { base: project.path })
@@ -256,7 +246,8 @@ function buildAppProject(project, projectGroup) {
             filesToCompile.push(projectFile);
 
     // Rebase passed-in file names so that they are within the project folder
-    for (var projectFile of project.files)
+    var files = project.files || ["**/*.ts"];
+    for (var projectFile of files)
         filesToCompile.push(projectFolderName + projectFile);
 
     // Transpile the project's Typescript into Javascript
