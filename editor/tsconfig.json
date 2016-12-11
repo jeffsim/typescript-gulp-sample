@@ -11,6 +11,7 @@
         "outFile": "willGetRenamedAnyways.js",
         "allowJs": true,
         "preserveConstEnums": true,
-        "suppressImplicitAnyIndexErrors": true
+        "suppressImplicitAnyIndexErrors": true,
+        "skipLibCheck": true
     }
 }
