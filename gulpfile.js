@@ -14,6 +14,12 @@ var changedInPlace = require("gulp-changed-in-place"),
     uglify = require("gulp-uglify");
 
 
+// TODO
+// * Can I just prepent project.path with "/" above and avoid the need to prepend below?
+// * Figure out why incremental build isn't working
+// * Possible to force nonincremental build if gulpfile.js changed?
+
+
 var settings = {
     // Dump extra output during the build process
     verboseOutput: true,
@@ -58,7 +64,7 @@ var editor = {
     projects: [{
         name: "editor",
         path: "editor",
-        files: ["**/*.ts"]
+        isBuiltIn: true
     }]
 }
 
@@ -74,7 +80,7 @@ var plugins = {
     // All projects in this group have these files copied into their sample folders.  Built files typically go here.
     filesToPrecopyToAllProjects: [{ src: "dist/typings/editor.d.ts", dest: "typings" }],
     projects: [{
-        name: "debugDuality",
+        name: "debugDualityPlugin",
         path: "plugins/duality/debugDualityPlugin",
         isBuiltIn: true,
     }, {
@@ -167,13 +173,32 @@ function buildLib(project, projectGroup) {
     for (var projectFile of files)
         filesToCompile.push(projectFolderName + projectFile);
     var ts = tsc.createProject(joinPath(project.path, "tsconfig.json"));
-    return gulp.src(filesToCompile, { base: project.path })
-        .pipe(gulpIf(settings.incrementalBuild, changedInPlace()))
+
+    // Start things up, passing in the files to compile.
+    return gulp.src(filesToCompile, { base: "." })
+
+        // TODO: changedInPlace doesn't seem to be working; what am I missing?
+        // .pipe(gulpIf(settings.incrementalBuild, changedInPlace()))
+
+        // Initialize sourcemap generation
         .pipe(sourcemaps.init())
+
+        // Do the actual transpilation from Typescript to Javascript.
         .pipe(ts())
+
+        // COmbine all of the resultant javascript into a single file called <project.name>-debug.js
         .pipe(concat(project.name + "-debug.js"))
+
+        // Write sourcemaps into the folder(s) set by the following gulp.dest calls
         .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: "/" }))
-        .pipe(gulp.dest("bld"))
+
+        // If the project isn't built-in, then it's distributable; copy minified version into dist/<project.path>
+        .pipe(gulpIf(!project.isBuiltIn, gulp.dest("dist/" + project.path)))
+
+        // Copy built output into /bld/<project.path>
+        .pipe(gulp.dest("bld/" + project.path))
+
+        // Output end of task
         .on("end", () => outputTaskEnd("buildLib", project, startTime));
 }
 
@@ -182,19 +207,37 @@ function buildLib(project, projectGroup) {
 function minifyLib(project) {
     var startTime = outputTaskStart("minifyLib", project);
 
-    return gulp.src(["bld/" + project.name + "-debug.js"])
-        .pipe(gulpIf(settings.incrementalBuild, changedInPlace()))
+    // Start things up, passing in the previously built <project.name>-debug.js file in the bld folder
+    return gulp.src(["bld/" + project.path + "/" + project.name + "-debug.js"], { base: "bld/" + project.path })
+
+        // TODO: changedInPlace doesn't seem to be working; what am I missing?
+        // .pipe(gulpIf(settings.incrementalBuild, changedInPlace()))
+
+        // Initialize Sourcemap generation, telling it to load existing sourcemap (from the already-built *-debug.js)
         .pipe(sourcemaps.init({ loadMaps: true }))
+
+        // We took in <project.name>-debug.js as source; rename output to <project-name>-min.js
         .pipe(rename(project.name + "-min.js"))
+
+        // Minify the project
         .pipe(uglify())
+
+        // Write sourcemaps into the folder(s) set by the following gulp.dest calls
         .pipe(sourcemaps.write(".", {
             includeContent: false, sourceRoot: "/",
 
-            // The sourceRoot and sources' paths from the source files are getting flattened; I need to maintain them
-            // separately, so forcibly remove the source root (a slash).
+            // The sourceRoot and sources' paths from the source files are getting flattened; vscode's chrome debugger
+            // plugin doesn't like that, so forcibly remove the source root (a slash).
             mapSources: (path) => path.substr(1)
         }))
-        .pipe(gulp.dest("bld"))
+
+        // If the project isn't built-in, then it's distributable; copy minified version into dist/<project.path>
+        .pipe(gulpIf(!project.isBuiltIn, gulp.dest("dist/" + project.path)))
+
+        // Copy built output into /bld/<project.path>
+        .pipe(gulp.dest("bld/" + project.path))
+
+        // Output end of task
         .on("end", () => outputTaskEnd("minifyLib", project, startTime));
 }
 
@@ -215,6 +258,65 @@ function buildLibDefinitionFile(project) {
         stream.end();
     });
     return stream;
+}
+
+
+// ====================================================================================================================
+// ======= BUILD BUNDLED EDITOR AND BUILT-IN PLUGINS ==================================================================
+
+function bundleEditorAndPlugins() {
+    var stream = through();
+    // First build the bundled "duality*.js" file
+    // once duality*.js is built, we can in parallel built duality*.min.js from it AND duality.d.ts.
+    buildBundledJS().on("end", () => {
+        eventStream.merge(minifyBundledJS(), buildBundledDTS()).on("end", () => stream.resume().end());
+    });
+    return stream;
+}
+
+function buildBundledJS() {
+    // Start by adding duality editor to list of files to concat; then add all built-in plugins to list of files
+    var sourceFiles = ["bld/editor/editor-debug.js"];
+    for (var plugin of plugins.projects)
+        if (plugin.isBuiltIn)
+            sourceFiles.push("bld/" + plugin.path + "/" + plugin.name + "-debug.js");
+
+    return buildBundle(sourceFiles, false);
+}
+
+// Take the pre-built duality*-debug.js file and bundle/minify it into duality*-min.js
+function minifyBundledJS() {
+    return buildBundle(["dist/" + dualityDebugFileName], true);
+}
+
+// This is passed in one or more already built files (with corresponding sourcemaps); it bundles them into just
+// one file and minifies if so requested.
+function buildBundle(sourceFiles, minify) {
+    return gulp.src(sourceFiles)
+        .pipe(gulpIf(settings.incrementalBuild, changedInPlace()))
+        .pipe(sourcemaps.init({ loadMaps: true }))
+        .pipe(gulpIf(!minify, concat(dualityDebugFileName)))
+        .pipe(gulpIf(minify, rename(dualityMinFileName)))
+        .pipe(gulpIf(minify, uglify()))
+        .pipe(sourcemaps.write(".", {
+            includeContent: false, sourceRoot: "/",
+
+            // The sourceRoot and sources' paths from the source files are getting flattened; vscode's chrome debugger
+            // plugin doesn't like that, so forcibly remove the source root (a slash).
+            mapSources: (path) => path.substr(1)
+        }))
+        .pipe(gulp.dest("dist"));
+}
+
+// Combines already-built editor.d.ts & built-in plugin d.ts files
+function buildBundledDTS() {
+    var files = [joinPath("dist/typings", editor.name + ".d.ts")];
+    for (var plugin of plugins.projects)
+        if (plugin.isBuiltIn)
+            files.push(joinPath("dist/typings", plugin.name + ".d.ts"));
+    return gulp.src(files)
+        .pipe(concat(dualityTypingFileName))
+        .pipe(gulp.dest("dist/typings"));
 }
 
 
@@ -264,65 +366,6 @@ function buildAppProject(project, projectGroup) {
         .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: rootPath }))
         .pipe(gulp.dest(projectFolderName))
         .on("end", () => outputTaskEnd("buildAppProject", project, startTime));
-}
-
-
-// ====================================================================================================================
-// ======= BUILD BUNDLED EDITOR AND BUILT-IN PLUGINS ==================================================================
-
-function bundleEditorAndPlugins() {
-    var stream = through();
-    // First build the bundled "duality*.js" file
-    // once duality*.js is built, we can in parallel built duality*.min.js from it AND duality.d.ts.
-    buildBundledJS().on("end", () => {
-        eventStream.merge(minifyBundledJS(), buildBundledDTS()).on("end", () => stream.resume().end());
-    });
-    return stream;
-}
-
-function buildBundledJS() {
-    // Start by adding duality editor to list of files to concat; then add all built-in plugins to list of files
-    var sourceFiles = ["bld/editor-debug.js"];
-    for (var plugin of plugins.projects)
-        if (plugin.isBuiltIn)
-            sourceFiles.push("bld/" + plugin.name + "-debug.js");
-
-    return buildBundle(sourceFiles, false);
-}
-
-// Take the pre-built duality*-debug.js file and bundle/minify it into duality*-min.js
-function minifyBundledJS() {
-    return buildBundle(["dist/" + dualityDebugFileName], true);
-}
-
-// This is passed in one or more already built files (with corresponding sourcemaps); it bundles them into just
-// one file and minifies if so requested.
-function buildBundle(sourceFiles, minify) {
-    return gulp.src(sourceFiles)
-        .pipe(gulpIf(settings.incrementalBuild, changedInPlace()))
-        .pipe(sourcemaps.init({ loadMaps: true }))
-        .pipe(gulpIf(!minify, concat(dualityDebugFileName)))
-        .pipe(gulpIf(minify, rename(dualityMinFileName)))
-        .pipe(gulpIf(minify, uglify()))
-        .pipe(sourcemaps.write(".", {
-            includeContent: false, sourceRoot: "/",
-
-            // The sourceRoot and sources' paths from the source files are getting flattened; I need to maintain them
-            // separately, so forcibly remove the source root (a slash).
-            mapSources: (path) => path.substr(1)
-        }))
-        .pipe(gulp.dest("dist"));
-}
-
-// Combines already-built editor.d.ts & built-in plugin d.ts files
-function buildBundledDTS() {
-    var files = [joinPath("dist/typings", editor.name + ".d.ts")];
-    for (var plugin of plugins.projects)
-        if (plugin.isBuiltIn)
-            files.push(joinPath("dist/typings", plugin.name + ".d.ts"));
-    return gulp.src(files)
-        .pipe(concat(dualityTypingFileName))
-        .pipe(gulp.dest("dist/typings"));
 }
 
 
