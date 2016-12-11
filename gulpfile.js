@@ -58,7 +58,7 @@ var editor = {
     projects: [{
         name: "editor",
         path: "editor",
-        files: [ "**/*.ts" ]
+        files: ["**/*.ts"]
     }]
 }
 
@@ -187,7 +187,13 @@ function minifyLib(project) {
         .pipe(sourcemaps.init({ loadMaps: true }))
         .pipe(rename(project.name + "-min.js"))
         .pipe(uglify())
-        .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: "/" }))
+        .pipe(sourcemaps.write(".", {
+            includeContent: false, sourceRoot: "/",
+
+            // The sourceRoot and sources' paths from the source files are getting flattened; I need to maintain them
+            // separately, so forcibly remove the source root (a slash).
+            mapSources: (path) => path.substr(1)
+        }))
         .pipe(gulp.dest("bld"))
         .on("end", () => outputTaskEnd("minifyLib", project, startTime));
 }
@@ -350,7 +356,7 @@ function clean() {
 // ====================================================================================================================
 // ======= UTILTIES ===================================================================================================
 
-// Runs in order a series of functions which return streams or promises.  Does not call function N until function (N-1) 
+// Runs in order a series of functions which return streams or promises.  Does not call function N until function (N-1)
 // has reached the end of its stream; denoted by the stream triggering the "end" event.  Returns a stream.
 // NOTE: This is likely a pretty fragile function and doesn't support myriad realities of streams and promises.  Works
 //       for this gulpfile's needs, though!
@@ -387,7 +393,7 @@ function copyFile(src, dest) {
 // Projects may require built files like duality-debug-plugin-XYZ.d.ts to be precopied
 // duality.d.ts is automatically copied for all projects (except editor), but others need to be manually specified here.
 // precopyFullDuality - if true, duality.d.ts is precopied; if false, editor.d.ts is precopied.  this is because plugins
-//      need editor.d.ts, not full duality.d.ts (which includes plugins) 
+//      need editor.d.ts, not full duality.d.ts (which includes plugins)
 function precopyRequiredFiles(projectGroup) {
     var startTime = outputTaskStart("precopyRequiredFiles");
 
@@ -474,7 +480,7 @@ function buildDuality() {
 }
 
 // Does a complete rebuild
-gulp.task("rebuild-all-duality", function() {
+gulp.task("rebuild-all-duality", function () {
     // Don't do an incremental build
     settings.incrementalBuild = false;
 
@@ -486,6 +492,6 @@ gulp.task("rebuild-all-duality", function() {
 });
 
 // Builds duality
-gulp.task("build-duality", function() {
+gulp.task("build-duality", function () {
     return buildDuality();
 });
