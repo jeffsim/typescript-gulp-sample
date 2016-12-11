@@ -14,6 +14,16 @@
                 "--disable-session-crashed-bubble",
                 "--disable-infobars"
             ]
+        }, {
+            "name":"node gulp.js ...",
+            "request": "launch",
+            "type":"node",
+            "program":"${workspaceRoot}/node_modules/gulp/bin/gulp.js",
+            "stopOnEntry":false,
+            "args":["build-duality"],
+            "cwd":"${workspaceRoot}",
+            "runtimeExecutable": null,
+            "env":{}
         }
     ]
 }

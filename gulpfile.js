@@ -1,7 +1,6 @@
 "use strict";
 
-var changedInPlace = require("gulp-changed-in-place"),
-    concat = require("gulp-concat"),
+var concat = require("gulp-concat"),
     del = require("del"),
     dtsGenerator = require("dts-generator"),
     eventStream = require("event-stream"),
@@ -12,12 +11,6 @@ var changedInPlace = require("gulp-changed-in-place"),
     through = require('through2'),
     tsc = require("gulp-typescript"),
     uglify = require("gulp-uglify");
-
-
-// TODO
-// * Can I just prepent project.path with "/" above and avoid the need to prepend below?
-// * Figure out why incremental build isn't working
-// * Possible to force nonincremental build if gulpfile.js changed?
 
 
 var settings = {
@@ -177,8 +170,8 @@ function buildLib(project, projectGroup) {
     // Start things up, passing in the files to compile.
     return gulp.src(filesToCompile, { base: "." })
 
-        // TODO: changedInPlace doesn't seem to be working; what am I missing?
-        // .pipe(gulpIf(settings.incrementalBuild, changedInPlace()))
+        .pipe(gulpIf(settings.incrementalBuild, filterToChangedFiles()))
+        .pipe(gulpIf(settings.incrementalBuild, outputFilesInStream("buildLib")))
 
         // Initialize sourcemap generation
         .pipe(sourcemaps.init())
@@ -186,7 +179,7 @@ function buildLib(project, projectGroup) {
         // Do the actual transpilation from Typescript to Javascript.
         .pipe(ts())
 
-        // COmbine all of the resultant javascript into a single file called <project.name>-debug.js
+        // Combine all of the resultant javascript into a single file called <project.name>-debug.js
         .pipe(concat(project.name + "-debug.js"))
 
         // Write sourcemaps into the folder(s) set by the following gulp.dest calls
@@ -210,8 +203,8 @@ function minifyLib(project) {
     // Start things up, passing in the previously built <project.name>-debug.js file in the bld folder
     return gulp.src(["bld/" + project.path + "/" + project.name + "-debug.js"], { base: "bld/" + project.path })
 
-        // TODO: changedInPlace doesn't seem to be working; what am I missing?
-        // .pipe(gulpIf(settings.incrementalBuild, changedInPlace()))
+        .pipe(gulpIf(settings.incrementalBuild, filterToChangedFiles()))
+        .pipe(gulpIf(settings.incrementalBuild, outputFilesInStream("minifyLib")))
 
         // Initialize Sourcemap generation, telling it to load existing sourcemap (from the already-built *-debug.js)
         .pipe(sourcemaps.init({ loadMaps: true }))
@@ -293,7 +286,6 @@ function minifyBundledJS() {
 // one file and minifies if so requested.
 function buildBundle(sourceFiles, minify) {
     return gulp.src(sourceFiles)
-        .pipe(gulpIf(settings.incrementalBuild, changedInPlace()))
         .pipe(sourcemaps.init({ loadMaps: true }))
         .pipe(gulpIf(!minify, concat(dualityDebugFileName)))
         .pipe(gulpIf(minify, rename(dualityMinFileName)))
@@ -360,7 +352,8 @@ function buildAppProject(project, projectGroup) {
 
     // Transpile the project's Typescript into Javascript
     return gulp.src(filesToCompile, { base: project.path })
-        .pipe(gulpIf(settings.incrementalBuild, changedInPlace()))
+        .pipe(gulpIf(settings.incrementalBuild, filterToChangedFiles()))
+        .pipe(gulpIf(settings.incrementalBuild, outputFilesInStream("buildApp")))
         .pipe(sourcemaps.init())
         .pipe(ts())
         .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: rootPath }))
@@ -494,6 +487,37 @@ function outputTaskEnd(name, project, time) {
         console.log("[" + time + "] Finished " + name + " after " + delta + " s");
 }
 
+// Outputs (to console) the list of files in the current stream
+function outputFilesInStream(taskName) {
+    return through.obj(function (file, enc, callback) {
+        if (settings.verboseOutput) {
+            // we compile d.ts files, but don't babble about them here.
+            if (file.relative.indexOf(".d.ts") == -1)
+                console.log("[" + taskName + "]: Dirty source file: " + file.relative);
+        }
+
+        this.push(file);
+        return callback();
+    });
+}
+
+// My implmentation of changed-files.
+var dirtyFileCache = {};
+function filterToChangedFiles() {
+    return through.obj(function (file, encoding, done) {
+        var lastModifiedTime = file.stat.mtime.valueOf();
+        var cachedTime = dirtyFileCache[file.path];
+        if (!cachedTime || (cachedTime != lastModifiedTime)) {
+            // we've seen the file before and the lastModifiedTime has changed then pass it through; otherwise, drop it
+            dirtyFileCache[file.path] = lastModifiedTime;
+            this.push(file);
+        } else if (file.relative.indexOf(".d.ts") != -1) {
+            // Pass d.ts files through even if they haven't changed, so that they're always present for the compiler.
+            this.push(file);
+        }
+        done();
+    });
+}
 
 // ====================================================================================================================
 // ======= ROOT TASKS =================================================================================================
@@ -524,6 +548,7 @@ function buildDuality() {
 
 // Does a complete rebuild
 gulp.task("rebuild-all-duality", function () {
+    console.log("=====================================================");
     // Don't do an incremental build
     settings.incrementalBuild = false;
 
@@ -536,14 +561,25 @@ gulp.task("rebuild-all-duality", function () {
 
 // Builds duality
 gulp.task("build-duality", function () {
-    
-    // Incremental builds through changedInPlace are not working like I had naively hoped they would.  I believe now
-    // that what I need is a (1) background task running which watches for file updates and updates a dirtyCache with
-    // them, and (2) in transpilation tasks check the stream's set of files against that cache and only pass them
-    // through if they are in there (and then remove them from the cache once done).  HOWEVER, VS Code doesn't currently
-    // support that; https://github.com/Microsoft/vscode/issues/981.  So: leaving in place in case I'm just missing
-    // something obvious, but disabling since it isn't working. 
-    settings.incrementalBuild = false;
-
+    console.log("=====================================================");
+    settings.incrementalBuild = true;
     return buildDuality();
+});
+
+// Watches; also enables incremental builds.  You can just run this task and let it handle things
+// It does do a build-on-save which isn't exactly what I wanted to enable here (I'd prefer in this task to just track
+// dirty files and pass that list on to build-duality when a build task is started).  Should work as-is though
+// TODO: why isn't tsc problem matcher working?  SEE: https://github.com/Microsoft/vscode/issues/13265
+
+gulp.task('watch', function () {
+    // Since this is always running, limit output to errors
+    settings.verboseOutput = false;
+
+    // Watch for changes to ts files; when they occur, run the 'build-duality' task
+    gulp.watch([
+        "**/*.ts",
+        "!**/*.d.ts",
+        "!dist",
+        "!bld"
+    ], ["build-duality"])
 });

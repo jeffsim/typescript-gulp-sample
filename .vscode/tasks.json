@@ -26,6 +26,14 @@
             "problemMatcher": [
                 "$tsc"
             ]
+        },{
+            "taskName": "watch",
+            "args": [],
+            "isBuildCommand": true,
+            "isWatching": true,
+            "problemMatcher": [
+                "$tsc"
+            ]
         }
     ]
 }
