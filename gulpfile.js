@@ -64,7 +64,7 @@ var editor = {
     projects: [{
         name: "editor",
         path: "editor",
-        isBuiltIn: true
+        includeInBundle: true
     }]
 }
 
@@ -82,15 +82,15 @@ var plugins = {
     projects: [{
         name: "debugDualityPlugin",
         path: "plugins/duality/debugDualityPlugin",
-        isBuiltIn: true,
+        includeInBundle: true,
     }, {
         name: "debugDuality2",
         path: "plugins/duality/debugPlugin2",
-        isBuiltIn: true,
+        includeInBundle: true,
     }, {
         name: "threejs",
         path: "plugins/threeJS",
-        isBuiltIn: false,
+        includeInBundle: false,
     }]
 };
 
@@ -193,7 +193,7 @@ function buildLib(project, projectGroup) {
         .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: "/" }))
 
         // If the project isn't built-in, then it's distributable; copy minified version into dist/<project.path>
-        .pipe(gulpIf(!project.isBuiltIn, gulp.dest("dist/" + project.path)))
+        .pipe(gulpIf(!project.includeInBundle, gulp.dest("dist/" + project.path)))
 
         // Copy built output into /bld/<project.path>
         .pipe(gulp.dest("bld/" + project.path))
@@ -232,7 +232,7 @@ function minifyLib(project) {
         }))
 
         // If the project isn't built-in, then it's distributable; copy minified version into dist/<project.path>
-        .pipe(gulpIf(!project.isBuiltIn, gulp.dest("dist/" + project.path)))
+        .pipe(gulpIf(!project.includeInBundle, gulp.dest("dist/" + project.path)))
 
         // Copy built output into /bld/<project.path>
         .pipe(gulp.dest("bld/" + project.path))
@@ -278,7 +278,7 @@ function buildBundledJS() {
     // Start by adding duality editor to list of files to concat; then add all built-in plugins to list of files
     var sourceFiles = ["bld/editor/editor-debug.js"];
     for (var plugin of plugins.projects)
-        if (plugin.isBuiltIn)
+        if (plugin.includeInBundle)
             sourceFiles.push("bld/" + plugin.path + "/" + plugin.name + "-debug.js");
 
     return buildBundle(sourceFiles, false);
@@ -312,7 +312,7 @@ function buildBundle(sourceFiles, minify) {
 function buildBundledDTS() {
     var files = [joinPath("dist/typings", editor.name + ".d.ts")];
     for (var plugin of plugins.projects)
-        if (plugin.isBuiltIn)
+        if (plugin.includeInBundle)
             files.push(joinPath("dist/typings", plugin.name + ".d.ts"));
     return gulp.src(files)
         .pipe(concat(dualityTypingFileName))
