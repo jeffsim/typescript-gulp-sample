@@ -536,5 +536,14 @@ gulp.task("rebuild-all-duality", function () {
 
 // Builds duality
 gulp.task("build-duality", function () {
+    
+    // Incremental builds through changedInPlace are not working like I had naively hoped they would.  I believe now
+    // that what I need is a (1) background task running which watches for file updates and updates a dirtyCache with
+    // them, and (2) in transpilation tasks check the stream's set of files against that cache and only pass them
+    // through if they are in there (and then remove them from the cache once done).  HOWEVER, VS Code doesn't currently
+    // support that; https://github.com/Microsoft/vscode/issues/981.  So: leaving in place in case I'm just missing
+    // something obvious, but disabling since it isn't working. 
+    settings.incrementalBuild = false;
+
     return buildDuality();
 });
