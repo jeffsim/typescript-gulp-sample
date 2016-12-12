@@ -170,8 +170,17 @@ function buildLib(project, projectGroup) {
     // Start things up, passing in the files to compile.
     return gulp.src(filesToCompile, { base: "." })
 
-        .pipe(gulpIf(settings.incrementalBuild, filterToChangedFiles()))
-        .pipe(gulpIf(settings.incrementalBuild, outputFilesInStream("buildLib")))
+        // Removed as it turns out that (obviously, in retrospect) you can't filter down just to changed files, as TSC
+        // needs all files to compile properly.  using gulp.watch maintains some state to reduce compilation time (about
+        // 10% in this sample on this machine.  I suspect a 'real' project with more files to compile would see more 
+        // improvement).
+        // Another option is to use isolatedModules:true in tsconfig, but that requires external modules which this
+        // sample doesn't use.  Leaving these in now though as someday (looks wistfully into the distance) this may work
+        // Ref:
+        //  https://github.com/ivogabe/gulp-typescript/issues/228
+        //  https://github.com/mgechev/angular-seed/wiki/Speeding-the-build-up
+        //.pipe(gulpIf(settings.incrementalBuild, filterToChangedFiles()))
+        //.pipe(gulpIf(settings.incrementalBuild, outputFilesInStream("buildLib")))
 
         // Initialize sourcemap generation
         .pipe(sourcemaps.init())
@@ -203,8 +212,9 @@ function minifyLib(project) {
     // Start things up, passing in the previously built <project.name>-debug.js file in the bld folder
     return gulp.src(["bld/" + project.path + "/" + project.name + "-debug.js"], { base: "bld/" + project.path })
 
-        .pipe(gulpIf(settings.incrementalBuild, filterToChangedFiles()))
-        .pipe(gulpIf(settings.incrementalBuild, outputFilesInStream("minifyLib")))
+        // See comment on other call to filterToChangedFiles for reason why this is commented out.
+        //.pipe(gulpIf(settings.incrementalBuild, filterToChangedFiles()))
+        //.pipe(gulpIf(settings.incrementalBuild, outputFilesInStream("minifyLib")))
 
         // Initialize Sourcemap generation, telling it to load existing sourcemap (from the already-built *-debug.js)
         .pipe(sourcemaps.init({ loadMaps: true }))
@@ -269,15 +279,15 @@ function bundleEditorAndPlugins() {
 
 function buildBundledJS() {
     // Start by adding duality editor to list of files to concat; then add all built-in plugins to list of files
-    var sourceFiles = ["bld/editor/editor-debug.js"];
+    var sourceFiles = ["bld/editor-debug.js"];
     for (var plugin of plugins.projects)
         if (plugin.includeInBundle)
-            sourceFiles.push("bld/" + plugin.path + "/" + plugin.name + "-debug.js");
+            sourceFiles.push("bld/" + plugin.name + "-debug.js");
 
     return buildBundle(sourceFiles, false);
 }
 
-// Take the pre-built duality*-debug.js file and bundle/minify it into duality*-min.js
+// Takes the pre-built duality*-debug.js file and bundle/minify it into duality*-min.js
 function minifyBundledJS() {
     return buildBundle(["dist/" + dualityDebugFileName], true);
 }
@@ -293,8 +303,8 @@ function buildBundle(sourceFiles, minify) {
         .pipe(sourcemaps.write(".", {
             includeContent: false, sourceRoot: "/",
 
-            // The sourceRoot and sources' paths from the source files are getting flattened; vscode's chrome debugger
-            // plugin doesn't like that, so forcibly remove the source root (a slash).
+            // The sourceRoot and sources' paths from the source files are getting flattened; I need to maintain them
+            // separately, so forcibly remove the source root (a slash).
             mapSources: (path) => path.substr(1)
         }))
         .pipe(gulp.dest("dist"));
@@ -341,19 +351,21 @@ function buildAppProject(project, projectGroup) {
 
     // Create list of files to compile.  Combination of common files in the project group AND files in the project
     var filesToCompile = [];
-    if (projectGroup.commonFiles)
+    if (projectGroup.commonFiles) {
         for (var projectFile of projectGroup.commonFiles)
             filesToCompile.push(projectFile);
-
+    }
     // Rebase passed-in file names so that they are within the project folder
-    var files = project.files || ["**/*.ts"];
-    for (var projectFile of files)
+    for (var projectFile of project.files || ["**/*.ts"])
         filesToCompile.push(projectFolderName + projectFile);
 
     // Transpile the project's Typescript into Javascript
     return gulp.src(filesToCompile, { base: project.path })
-        .pipe(gulpIf(settings.incrementalBuild, filterToChangedFiles()))
-        .pipe(gulpIf(settings.incrementalBuild, outputFilesInStream("buildApp")))
+
+        // See comment on other call to filterToChangedFiles for reason why this is commented out.
+        //.pipe(gulpIf(settings.incrementalBuild, filterToChangedFiles()))
+        //.pipe(gulpIf(settings.incrementalBuild, outputFilesInStream("minifyLib")))
+
         .pipe(sourcemaps.init())
         .pipe(ts())
         .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: rootPath }))
@@ -487,6 +499,10 @@ function outputTaskEnd(name, project, time) {
         console.log("[" + time + "] Finished " + name + " after " + delta + " s");
 }
 
+/*
+Commented out as I can't actually use these for incremental compilation (see the comment before one of the calls to
+filterToChangedFiles for details).  Leaving in as I may use them one day...
+ 
 // Outputs (to console) the list of files in the current stream
 function outputFilesInStream(taskName) {
     return through.obj(function (file, enc, callback) {
@@ -517,7 +533,8 @@ function filterToChangedFiles() {
         }
         done();
     });
-}
+}*/
+
 
 // ====================================================================================================================
 // ======= ROOT TASKS =================================================================================================
@@ -570,7 +587,6 @@ gulp.task("build-duality", function () {
 // It does do a build-on-save which isn't exactly what I wanted to enable here (I'd prefer in this task to just track
 // dirty files and pass that list on to build-duality when a build task is started).  Should work as-is though
 // TODO: why isn't tsc problem matcher working?  SEE: https://github.com/Microsoft/vscode/issues/13265
-
 gulp.task('watch', function () {
     // Since this is always running, limit output to errors
     settings.verboseOutput = false;
