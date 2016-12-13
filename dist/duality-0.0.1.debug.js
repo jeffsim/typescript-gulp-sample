@@ -22,7 +22,7 @@ var Duality;
         __extends(Label, _super);
         function Label() {
             var _this = _super.call(this) || this;
-            console.log("label");
+            console.log("label1");
             console.log("label2");
             console.log("label3");
             return _this;
@@ -30,37 +30,6 @@ var Duality;
         return Label;
     }(Duality.Visual));
     Duality.Label = Label;
-})(Duality || (Duality = {}));
-var Duality;
-(function (Duality) {
-    var TextBox = (function (_super) {
-        __extends(TextBox, _super);
-        function TextBox() {
-            var _this = _super.call(this) || this;
-            console.log("textbox");
-            return _this;
-        }
-        return TextBox;
-    }(Duality.Visual));
-    Duality.TextBox = TextBox;
-})(Duality || (Duality = {}));
-var Duality;
-(function (Duality) {
-    var Editor = (function (_super) {
-        __extends(Editor, _super);
-        function Editor() {
-            var _this = _super.call(this) || this;
-            console.log("EDITOR");
-            new Duality.Label();
-            new Duality.TextBox();
-            return _this;
-        }
-        Editor.prototype.test = function () {
-            return "qwer";
-        };
-        return Editor;
-    }(Duality.Visual));
-    Duality.Editor = Editor;
 })(Duality || (Duality = {}));
 
 

@@ -438,10 +438,7 @@ function copyFile(src, dest) {
     return gulp.src(src).pipe(gulp.dest(dest));
 }
 
-// Projects may require built files like duality-debug-plugin-XYZ.d.ts to be precopied
-// duality.d.ts is automatically copied for all projects (except editor), but others need to be manually specified here.
-// precopyFullDuality - if true, duality.d.ts is precopied; if false, editor.d.ts is precopied.  this is because plugins
-//      need editor.d.ts, not full duality.d.ts (which includes plugins)
+// Copies any previously built files into the ProjectGroup's Projects.
 function precopyRequiredFiles(projectGroup) {
     var startTime = outputTaskStart("precopyRequiredFiles");
 
@@ -517,7 +514,7 @@ function outputFilesInStream(taskName) {
     });
 }
 
-// My implmentation of changed-files.
+// My quick-and-dirty reimplementation of changed-files-in-place which uses timeStamp instead of hash.
 var dirtyFileCache = {};
 function filterToChangedFiles() {
     return through.obj(function (file, encoding, done) {

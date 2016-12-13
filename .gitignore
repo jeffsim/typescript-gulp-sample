@@ -2,3 +2,11 @@ Thumbs.db
 .DS_Store
 node_modules/*
 bld/
+plugins/**/editor.d.ts
+samples/**/duality*.ts
+samples/**/three*.js*
+samples/**/three*.d.ts
+tests/**/*.js*
+tests/**/duality*.d.ts
+samples/testApp2/testApp2.js*
+samples/testApp2/testApp2plugin/testPlugin.js*
