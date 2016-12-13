@@ -27,7 +27,7 @@ var settings = {
 // Editor, Plugins, Tests, and Samples are all defined using a common project format so that they can be handled
 // generically.  All projects must have at minimum: name:string, path:string, and files:string[]
 
-// editor, plugins, tests, and samples are all examples of ProjectGroups.  Here's the defn of ProjectGroup:
+// editor, plugins, tests, and samples are all examples of ProjectGroups.  Here's the structure of ProjectGroup:
 //  name:string                 Name of the project group; output in the task header during build process.
 //  isLibrary:bool              If true, then output is a library; otherwise it's an app.  editor and plugins are
 //                              libraries and tests and samples are apps.  See buildAppProject and buildLibProject for
@@ -40,11 +40,14 @@ var settings = {
 //  filesToPrecopyOnce?:fileCopy[]  Optional list of files that should be precopied once before projects are compiled.
 //                              Example usage: all tests reference the same duality*.d.ts, so copy it once into the
 //                              tests/typings folder.  NOTE: paths are relative to root.
-//  commonFiles?:string[]       Optional list of files that should be including in compilation of projects
-//  projects:Project[]          List of projects within the ProjectGroup.  Structure of Project:
-//      name: string            Name of the project
-//      path: string            Path of the project relative to root
-//      files: string[]         List of files to compile; relative to project path.
+//  commonFiles?:string[]       Optional list of files that should be including in compilation of all projects in the
+//                              ProjectGroup.  e.g. All Tests include tests/typings/*.d.ts.
+//  projects:Project[]          List of Projects within the ProjectGroup.
+//
+// Structure of Project object:
+//  name: string                Name of the Project
+//  path: string                Path of the Project relative to root
+//  files: string[]             List of files to compile; relative to project path.
 //                              If unspecified, defaults to '["**/*.ts"]', which == all TS files in the project folder.
 //
 // NOTE: each ProjectGroup can also define its own additional properties; e.g. the editor ProjectGroup includes version
@@ -356,7 +359,8 @@ function buildAppProject(project, projectGroup) {
             filesToCompile.push(projectFile);
     }
     // Rebase passed-in file names so that they are within the project folder
-    for (var projectFile of project.files || ["**/*.ts"])
+    var files = project.files || ["**/*.ts"];
+    for (var projectFile of files)
         filesToCompile.push(projectFolderName + projectFile);
 
     // Transpile the project's Typescript into Javascript
