@@ -502,7 +502,7 @@ function outputTaskEnd(name, project, time) {
 /*
 Commented out as I can't actually use these for incremental compilation (see the comment before one of the calls to
 filterToChangedFiles for details).  Leaving in as I may use them one day...
- 
+
 // Outputs (to console) the list of files in the current stream
 function outputFilesInStream(taskName) {
     return through.obj(function (file, enc, callback) {
@@ -583,10 +583,13 @@ gulp.task("build-duality", function () {
     return buildDuality();
 });
 
+// Q: Why isn't tsc problem matcher working?  SEE: https://github.com/Microsoft/vscode/issues/13265
+// A: Because pattern matchers don't (yet) apply to output window, which only works with aboslute paths
+// SEE: https://github.com/Microsoft/vscode/issues/6217
+
 // Watches; also enables incremental builds.  You can just run this task and let it handle things
 // It does do a build-on-save which isn't exactly what I wanted to enable here (I'd prefer in this task to just track
 // dirty files and pass that list on to build-duality when a build task is started).  Should work as-is though
-// TODO: why isn't tsc problem matcher working?  SEE: https://github.com/Microsoft/vscode/issues/13265
 gulp.task('watch', function () {
     // Since this is always running, limit output to errors
     settings.verboseOutput = false;
