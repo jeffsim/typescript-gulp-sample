@@ -4,11 +4,11 @@ This Typescript project was created as a part of another coding project (as-yet-
 
 * Typescript
 * Gulp-based builds
+* Bundling library output into a single js file using namespaces (not external modules)
 * Proper ordering of files (e.g. baseclasses before derived classes) in the build
 * Ambient typings working throughout while editing
 * Generation of a bundled d.ts file for your project
 * How to get one gulpfile to work with multiple projects and multiple tsconfigs
-* Bundling library output into a single js file
 * VS Code environment (likely works in Atom and other IDEs/editors as well, possibly with some tweaks)
 * debug and minified builds
 * Sourcemap-based debugging
