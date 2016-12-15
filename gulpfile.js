@@ -149,9 +149,9 @@ function buildLibProject(project, projectGroup) {
     // First build the library; then in parallel minify it and build d.ts file.
     return runSeries([
         () => buildLib(project, projectGroup),
-        () => eventStream.merge([
-            minifyLib(project),
-            buildLibDefinitionFile(project)
+        () => runParallel([
+            ()=>minifyLib(project),
+            ()=>buildLibDefinitionFile(project)
         ])
     ]);
 }
