@@ -266,7 +266,7 @@ function buildLibDefinitionFile(project) {
         out: "dist/typings/" + project.name + '.d.ts'
     }).then(() => {
         taskTracker.end();
-        stream.end();
+        stream.resume().end();
     });
     return stream;
 }
