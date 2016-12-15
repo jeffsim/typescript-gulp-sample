@@ -17,6 +17,10 @@ var settings = {
     // Dump extra output during the build process
     verboseOutput: true,
 
+    // If true, then don't parallelize tasks.  Not something you would usually set; mostly just useful if you
+    // are having build issues and want cleaner output.
+    forceSerializedTasks: false,
+
     // true if we should do an incremental (oh so fast) build.  rebuild all sets this to false
     incrementalBuild: true,
 };
@@ -133,14 +137,15 @@ var samples = {
 // Wait until all of the libraries have been built before emitting done.  note: can run in parallel
 function buildLibProjects(projectGroup) {
     var buildActions = [];
-    for (var project of projectGroup.projects)
-        buildActions.push(buildLibProject(project, projectGroup));
-    return eventStream.merge(buildActions);
+    for (var project of projectGroup.projects) {
+        let p = project; // closure
+        buildActions.push(() => buildLibProject(p, projectGroup));
+    }
+    return runParallel(buildActions);
 }
 
 // For a single given library project, build it, then minify it, and then generate a d.ts file for it
 function buildLibProject(project, projectGroup) {
-
     // First build the library; then in parallel minify it and build d.ts file.
     return runSeries([
         () => buildLib(project, projectGroup),
@@ -271,33 +276,39 @@ function buildLibDefinitionFile(project) {
 // ======= BUILD BUNDLED EDITOR AND BUILT-IN PLUGINS ==================================================================
 
 function bundleEditorAndPlugins() {
+    outputTaskHeader("Build Bundle");
+
     var stream = through();
     // First build the bundled "duality*.js" file
     // once duality*.js is built, we can in parallel built duality*.min.js from it AND duality.d.ts.
     buildBundledJS().on("end", () => {
-        eventStream.merge(minifyBundledJS(), buildBundledDTS()).on("end", () => stream.resume().end());
+        runParallel([
+            () => minifyBundledJS(),
+            () => buildBundledDTS()])
+            .on("end", () => stream.resume().end());
     });
     return stream;
 }
 
 function buildBundledJS() {
     // Start by adding duality editor to list of files to concat; then add all built-in plugins to list of files
-    var sourceFiles = ["bld/editor-debug.js"];
+    var sourceFiles = ["bld/editor/editor-debug.js"];
     for (var plugin of plugins.projects)
         if (plugin.includeInBundle)
-            sourceFiles.push("bld/" + plugin.name + "-debug.js");
+            sourceFiles.push("bld/" + plugin.path + "/" + plugin.name + "-debug.js");
 
-    return buildBundle(sourceFiles, false);
+    return buildBundle(sourceFiles, false, "Build bundled JS");
 }
 
 // Takes the pre-built duality*-debug.js file and bundle/minify it into duality*-min.js
 function minifyBundledJS() {
-    return buildBundle(["dist/" + dualityDebugFileName], true);
+    return buildBundle(["dist/" + dualityDebugFileName], true, "Minify bundled JS");
 }
 
 // This is passed in one or more already built files (with corresponding sourcemaps); it bundles them into just
 // one file and minifies if so requested.
-function buildBundle(sourceFiles, minify) {
+function buildBundle(sourceFiles, minify, taskName) {
+    var taskTracker = new TaskTracker(taskName);
     return gulp.src(sourceFiles)
         .pipe(sourcemaps.init({ loadMaps: true }))
         .pipe(gulpIf(!minify, concat(dualityDebugFileName)))
@@ -310,18 +321,21 @@ function buildBundle(sourceFiles, minify) {
             // separately, so forcibly remove the source root (a slash).
             mapSources: (path) => path.substr(1)
         }))
-        .pipe(gulp.dest("dist"));
+        .pipe(gulp.dest("dist"))
+        .on("end", () => taskTracker.end());
 }
 
 // Combines already-built editor.d.ts & built-in plugin d.ts files
 function buildBundledDTS() {
+    var taskTracker = new TaskTracker("Build bundled DTS");
     var files = [joinPath("dist/typings", editor.name + ".d.ts")];
     for (var plugin of plugins.projects)
         if (plugin.includeInBundle)
             files.push(joinPath("dist/typings", plugin.name + ".d.ts"));
     return gulp.src(files)
         .pipe(concat(dualityTypingFileName))
-        .pipe(gulp.dest("dist/typings"));
+        .pipe(gulp.dest("dist/typings"))
+        .on("end", () => taskTracker.end());
 }
 
 
@@ -332,8 +346,8 @@ function buildBundledDTS() {
 function buildAppProjects(projectGroup) {
     var buildActions = [];
     for (var project of projectGroup.projects)
-        buildActions.push(buildAppProject(project, projectGroup));
-    return eventStream.merge(buildActions);
+        buildActions.push(() => buildAppProject(project, projectGroup));
+    return runParallel(buildActions);
 }
 
 // Builds a single App project
@@ -432,6 +446,24 @@ function runSeries(functions) {
     return stream;
 }
 
+// Runs a series of functions and returns a stream that is ended when all functions' streams end.
+// This is mostly just a pass-through to event-stream; however, I allow the user to force serialized
+// task execution here
+function runParallel(callbacks) {
+    if (settings.forceSerializedTasks) {
+        // Run them in series
+        return runSeries(callbacks);
+    } else {
+        // run them in parallel.  This function takes an array of callbacks, but event-stream expects already
+        // started streams, so call the callbacks here
+        // TODO: runSeries accepts both promises and streams, but eventStream only accepts streams.  convert them here
+        var funcs = [];
+        for (var func of callbacks)
+            funcs.push(func());
+        return eventStream.merge(funcs);
+    }
+}
+
 // Joins two paths together, removing multiple slashes (e.g. path/to//file)
 function joinPath(path, file) {
     return (path + '/' + file).replace(/\/{2,}/, '/');
@@ -450,21 +482,26 @@ function precopyRequiredFiles(projectGroup) {
     // Copy files that should be copied one time before a projectgroup is built; e.g. tests/typings/duality.d.ts is
     // used by all tests and needs to be copied from dist first.
     if (projectGroup.filesToPrecopyOnce)
-        for (var fileToCopy of projectGroup.filesToPrecopyOnce)
-            buildActions.push(copyFile(fileToCopy.src, fileToCopy.dest));
-
+        for (var fileToCopy of projectGroup.filesToPrecopyOnce) {
+            let file = fileToCopy; // closure
+            buildActions.push(() => copyFile(file.src, file.dest));
+        }
     for (var project of projectGroup.projects) {
         // Copy files that should be copied to every project in the entire project group
         if (projectGroup.filesToPrecopyToAllProjects)
-            for (var fileToCopy of projectGroup.filesToPrecopyToAllProjects)
-                buildActions.push(copyFile(fileToCopy.src, joinPath(project.path, fileToCopy.dest)));
+            for (var fileToCopy of projectGroup.filesToPrecopyToAllProjects) {
+                let file = fileToCopy, p = project; // closure
+                buildActions.push(() => copyFile(file.src, joinPath(p.path, file.dest)));
+            }
 
         // Copy any files that this project needs
         if (project.filesToPrecopy)
-            for (var fileToCopy of project.filesToPrecopy)
-                buildActions.push(copyFile(fileToCopy.src, joinPath(project.path, fileToCopy.dest)));
+            for (var fileToCopy of project.filesToPrecopy) {
+                let file = fileToCopy, p = project; // closure
+                buildActions.push(() => copyFile(file.src, joinPath(p.path, file.dest)));
+            }
     }
-    var stream = eventStream.merge(buildActions);
+    var stream = runParallel(buildActions);
     stream.on("end", () => taskTracker.end());
     return stream;
 }
@@ -487,7 +524,7 @@ function TaskTracker(taskName, project) {
     console.log(outStr);
 
     return {
-        end: function() {
+        end: function () {
             if (!settings.verboseOutput)
                 return;
             var endTime = new Date();
@@ -557,7 +594,7 @@ function buildDuality() {
         () => buildProjectGroup(editor),
         () => buildProjectGroup(plugins),
         () => bundleEditorAndPlugins(),
-        // side note: tests and samples could be built in parallel (so: use () => eventStream.merge([...])) - but
+        // side note: tests and samples could be built in parallel (so: use runParallel[...]) - but
         // perf diff isn't noticable here, and it messes up my pretty, pretty output.  So: if you have a lot of tests
         // and samples (... and typescript is actually doing multi-proc transpilation) then consider parallelizing these
         () => buildProjectGroup(tests),
@@ -568,6 +605,8 @@ function buildDuality() {
 // Does a complete rebuild
 gulp.task("rebuild-all-duality", function () {
     console.log("=====================================================");
+    if (settings.forceSerializedTasks)
+        console.log("== Forcing serialized tasks ==");
     // Don't do an incremental build
     settings.incrementalBuild = false;
 
@@ -581,6 +620,8 @@ gulp.task("rebuild-all-duality", function () {
 // Builds duality
 gulp.task("build-duality", function () {
     console.log("=====================================================");
+    if (settings.forceSerializedTasks)
+        console.log("== Forcing serialized tasks ==");
     settings.incrementalBuild = true;
     return buildDuality();
 });
