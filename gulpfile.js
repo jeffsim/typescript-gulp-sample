@@ -345,8 +345,10 @@ function buildBundledDTS() {
 // Builds a collection of App projects
 function buildAppProjects(projectGroup) {
     var buildActions = [];
-    for (var project of projectGroup.projects)
-        buildActions.push(() => buildAppProject(project, projectGroup));
+    for (var project of projectGroup.projects) {
+        let p = project; // closure
+        buildActions.push(() => buildAppProject(p, projectGroup));
+    }
     return runParallel(buildActions);
 }
 
@@ -501,9 +503,7 @@ function precopyRequiredFiles(projectGroup) {
                 buildActions.push(() => copyFile(file.src, joinPath(p.path, file.dest)));
             }
     }
-    var stream = runParallel(buildActions);
-    stream.on("end", () => taskTracker.end());
-    return stream;
+    return runParallel(buildActions).on("end", () => taskTracker.end());
 }
 
 // Called at the start of a top-level Task.
