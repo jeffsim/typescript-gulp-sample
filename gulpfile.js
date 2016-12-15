@@ -155,7 +155,7 @@ function buildLibProject(project, projectGroup) {
 //      Transpiles TS into JS and flattens JS into single "*-debug.js" file.
 //      Places flattened transpiled JS file in /dist folder
 function buildLib(project, projectGroup) {
-    var startTime = outputTaskStart("buildLib", project);
+    var taskTracker = new TaskTracker("buildLib", project);
     var projectFolderName = joinPath(project.path, "/");
 
     // Create list of files to compile.  Combination of common files in the project group AND files in the project
@@ -204,13 +204,13 @@ function buildLib(project, projectGroup) {
         .pipe(gulp.dest("bld/" + project.path))
 
         // Output end of task
-        .on("end", () => outputTaskEnd("buildLib", project, startTime));
+        .on("end", () => taskTracker.end())
 }
 
 // Minifies a single Library project. Uses the library project's already-built "*-debug.js" as single source file
 // Generates a single "*-min.js" output file.  Minifies it and places output in /dist
 function minifyLib(project) {
-    var startTime = outputTaskStart("minifyLib", project);
+    var taskTracker = new TaskTracker("minifyLib", project);
 
     // Start things up, passing in the previously built <project.name>-debug.js file in the bld folder
     return gulp.src(["bld/" + project.path + "/" + project.name + "-debug.js"], { base: "bld/" + project.path })
@@ -244,14 +244,14 @@ function minifyLib(project) {
         .pipe(gulp.dest("bld/" + project.path))
 
         // Output end of task
-        .on("end", () => outputTaskEnd("minifyLib", project, startTime));
+        .on("end", () => taskTracker.end())
 }
 
 // Generates .d.ts definition file for a single Library project
 // NOTE: 'declaration:true' in tsconfig.json doesn't support flattening into a single d.ts file, so using this instead.
 // Ideally would use the built-in version, but can't yet.  See: https://github.com/Microsoft/TypeScript/issues/2568
 function buildLibDefinitionFile(project) {
-    var startTime = outputTaskStart("buildLibDefinitionFile", project);
+    var taskTracker = new TaskTracker("buildLibDefinitionFile", project);
     var stream = through();
     dtsGenerator.default({
         name: project.name,
@@ -260,7 +260,7 @@ function buildLibDefinitionFile(project) {
         exclude: ["./**/*.d.ts"],
         out: "dist/typings/" + project.name + '.d.ts'
     }).then(() => {
-        outputTaskEnd("buildLibDefinitionFile", project, startTime);
+        taskTracker.end();
         stream.end();
     });
     return stream;
@@ -343,7 +343,7 @@ function buildAppProjects(projectGroup) {
 //      Doesn't output Typings
 function buildAppProject(project, projectGroup) {
 
-    var startTime = outputTaskStart("buildAppProject", project);
+    var taskTracker = new TaskTracker("buildAppProject", project);
 
     // Create folder paths and ensure slashes are in the expected places
     var projectFolderName = joinPath(project.path, "/");
@@ -374,7 +374,7 @@ function buildAppProject(project, projectGroup) {
         .pipe(ts())
         .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: rootPath }))
         .pipe(gulp.dest(projectFolderName))
-        .on("end", () => outputTaskEnd("buildAppProject", project, startTime));
+        .on("end", () => taskTracker.end());
 }
 
 
@@ -382,7 +382,7 @@ function buildAppProject(project, projectGroup) {
 // ======= CLEAN ======================================================================================================
 
 function clean() {
-    var startTime = outputTaskStart("clean");
+    var taskTracker = new TaskTracker("clean");
     return del([
         // Delete dist and bld
         "bld",
@@ -402,7 +402,7 @@ function clean() {
         // Cleanup samples folder
         // note: leave samples' *.js and /typings, as the sample may have some that shouldn't be deleted
         "./samples/**/typings/duality*.d.ts"
-    ]).then(() => outputTaskEnd("clean", null, startTime));
+    ]).then(() => taskTracker.end());
 }
 
 // ====================================================================================================================
@@ -444,7 +444,7 @@ function copyFile(src, dest) {
 
 // Copies any previously built files into the ProjectGroup's Projects.
 function precopyRequiredFiles(projectGroup) {
-    var startTime = outputTaskStart("precopyRequiredFiles");
+    var taskTracker = new TaskTracker("precopyRequiredFiles");
 
     var buildActions = [];
     // Copy files that should be copied one time before a projectgroup is built; e.g. tests/typings/duality.d.ts is
@@ -465,7 +465,7 @@ function precopyRequiredFiles(projectGroup) {
                 buildActions.push(copyFile(fileToCopy.src, joinPath(project.path, fileToCopy.dest)));
     }
     var stream = eventStream.merge(buildActions);
-    stream.on("end", () => outputTaskEnd("precopyRequiredFiles", null, startTime));
+    stream.on("end", () => taskTracker.end());
     return stream;
 }
 
@@ -475,30 +475,31 @@ function outputTaskHeader(taskName) {
         console.log("===== " + taskName + " =======================================================");
 }
 
-// Called at the start of a subtask function.  Outputs to console; mimics gulp's task start/end formatting
-function outputTaskStart(name, project) {
+// Outputs task start and end info to console, including task run time.
+function TaskTracker(taskName, project) {
     if (!settings.verboseOutput)
         return;
     var startTime = new Date();
-    var time = startTime.toTimeString().replace(/.*(\d{2}:\d{2}:\d{2}).*/, "$1");
+    var startTimeStr = startTime.toTimeString().replace(/.*(\d{2}:\d{2}:\d{2}).*/, "$1");
+    var outStr = "[" + startTimeStr + "] Starting " + taskName;
     if (project)
-        console.log("[" + time + "] Starting " + name + " (" + project.name + ")");
-    else
-        console.log("[" + time + "] Starting " + name);
-    return startTime;
-}
+        outStr += " (" + project.name + ")";
+    console.log(outStr);
 
-// Called at the end of a subtask function.  Outputs to console; mimics gulp's task start/end formatting
-function outputTaskEnd(name, project, time) {
-    if (!settings.verboseOutput)
-        return;
-    var delta = (new Date() - time) / 1000;
-    time = time.toTimeString().replace(/.*(\d{2}:\d{2}:\d{2}).*/, "$1");
-    if (project)
-        console.log("[" + time + "] Finished " + name + " (" + project.name + ") after " + delta + " s");
-    else
-        console.log("[" + time + "] Finished " + name + " after " + delta + " s");
-}
+    return {
+        end: function() {
+            if (!settings.verboseOutput)
+                return;
+            var endTime = new Date();
+            var delta = (endTime - startTime) / 1000;
+            var endTimeStr = endTime.toTimeString().replace(/.*(\d{2}:\d{2}:\d{2}).*/, "$1");
+            if (project)
+                console.log("[" + endTimeStr + "] Finished " + taskName + " (" + project.name + ") after " + delta + " s");
+            else
+                console.log("[" + endTimeStr + "] Finished " + taskName + " after " + delta + " s");
+        }
+    };
+};
 
 /*
 Commented out as I can't actually use these for incremental compilation (see the comment before one of the calls to
