@@ -22,7 +22,17 @@ var settings = {
     forceSerializedTasks: false,
 
     // true if we should do an incremental (oh so fast) build.  rebuild all sets this to false
-    incrementalBuild: true,
+    //
+    // Removed as it turns out that (obviously, in retrospect) you can't filter down just to changed files, as TSC
+    // needs all files to compile properly.  using gulp.watch maintains some state to reduce compilation time (about
+    // 10% in this sample on this machine.  I suspect a 'real' project with more files to compile would see more 
+    // improvement).
+    // Another option is to use isolatedModules:true in tsconfig, but that requires external modules which this
+    // sample doesn't use.  Leaving these in now though as someday (looks wistfully into the distance) this may work
+    // Ref:
+    //  https://github.com/ivogabe/gulp-typescript/issues/228
+    //  https://github.com/mgechev/angular-seed/wiki/Speeding-the-build-up
+    // incrementalBuild: true,
 };
 
 
@@ -139,8 +149,8 @@ function buildLibProject(project, projectGroup) {
     return runSeries([
         () => buildLib(project, projectGroup),
         () => runParallel([
-            ()=>minifyLib(project),
-            ()=>buildLibDefinitionFile(project)
+            () => minifyLib(project),
+            () => buildLibDefinitionFile(project)
         ])
     ]);
 }
@@ -167,15 +177,7 @@ function buildLib(project, projectGroup) {
     // Start things up, passing in the files to compile.
     return gulp.src(filesToCompile, { base: "." })
 
-        // Removed as it turns out that (obviously, in retrospect) you can't filter down just to changed files, as TSC
-        // needs all files to compile properly.  using gulp.watch maintains some state to reduce compilation time (about
-        // 10% in this sample on this machine.  I suspect a 'real' project with more files to compile would see more 
-        // improvement).
-        // Another option is to use isolatedModules:true in tsconfig, but that requires external modules which this
-        // sample doesn't use.  Leaving these in now though as someday (looks wistfully into the distance) this may work
-        // Ref:
-        //  https://github.com/ivogabe/gulp-typescript/issues/228
-        //  https://github.com/mgechev/angular-seed/wiki/Speeding-the-build-up
+        // See comment before definition of settings.incrementalBuild for reason why this is commented out.
         //.pipe(gulpIf(settings.incrementalBuild, filterToChangedFiles()))
         //.pipe(gulpIf(settings.incrementalBuild, outputFilesInStream("buildLib")))
 
@@ -209,7 +211,7 @@ function minifyLib(project) {
     // Start things up, passing in the previously built <project.name>-debug.js file in the bld folder
     return gulp.src(["bld/" + project.path + "/" + project.name + "-debug.js"], { base: "bld/" + project.path })
 
-        // See comment on other call to filterToChangedFiles for reason why this is commented out.
+        // See comment before definition of settings.incrementalBuild for reason why this is commented out.
         //.pipe(gulpIf(settings.incrementalBuild, filterToChangedFiles()))
         //.pipe(gulpIf(settings.incrementalBuild, outputFilesInStream("minifyLib")))
 
@@ -361,7 +363,7 @@ function buildAppProject(project, projectGroup) {
     // Transpile the project's Typescript into Javascript
     return gulp.src(filesToCompile, { base: project.path })
 
-        // See comment on other call to filterToChangedFiles for reason why this is commented out.
+        // See comment before definition of settings.incrementalBuild for reason why this is commented out.
         //.pipe(gulpIf(settings.incrementalBuild, filterToChangedFiles()))
         //.pipe(gulpIf(settings.incrementalBuild, outputFilesInStream("minifyLib")))
 
@@ -597,8 +599,10 @@ gulp.task("rebuild-all-duality", function () {
     console.log("=====================================================");
     if (settings.forceSerializedTasks)
         console.log("== Forcing serialized tasks ==");
+    
     // Don't do an incremental build
-    settings.incrementalBuild = false;
+    // See comment before definition of settings.incrementalBuild for reason why this is commented out.
+    // settings.incrementalBuild = false;
 
     // Clean and then build.
     return runSeries([
@@ -612,7 +616,11 @@ gulp.task("build-duality", function () {
     console.log("=====================================================");
     if (settings.forceSerializedTasks)
         console.log("== Forcing serialized tasks ==");
-    settings.incrementalBuild = true;
+        
+    // Do an incremental build
+    // See comment before definition of settings.incrementalBuild for reason why this is commented out.
+    // settings.incrementalBuild = true;
+
     return buildDuality();
 });
 
