@@ -133,17 +133,6 @@ var samples = {
 // ====================================================================================================================
 // ======= LIBRARY BUILD FUNCTIONS ====================================================================================
 
-// Build a collection of library projects
-// Wait until all of the libraries have been built before emitting done.  note: can run in parallel
-function buildLibProjects(projectGroup) {
-    var buildActions = [];
-    for (var project of projectGroup.projects) {
-        let p = project; // closure
-        buildActions.push(() => buildLibProject(p, projectGroup));
-    }
-    return runParallel(buildActions);
-}
-
 // For a single given library project, build it, then minify it, and then generate a d.ts file for it
 function buildLibProject(project, projectGroup) {
     // First build the library; then in parallel minify it and build d.ts file.
@@ -341,16 +330,6 @@ function buildBundledDTS() {
 
 // ====================================================================================================================
 // ======= APP BUILD FUNCTIONS ========================================================================================
-
-// Builds a collection of App projects
-function buildAppProjects(projectGroup) {
-    var buildActions = [];
-    for (var project of projectGroup.projects) {
-        let p = project; // closure
-        buildActions.push(() => buildAppProject(p, projectGroup));
-    }
-    return runParallel(buildActions);
-}
 
 // Builds a single App project
 //      Places transpiled JS files alongside source TS files
@@ -578,12 +557,23 @@ function filterToChangedFiles() {
 // ====================================================================================================================
 // ======= ROOT TASKS =================================================================================================
 
+// Build a collection of library or App projects
+function buildProjects(projectGroup) {
+    var buildActions = [];
+    var buildFunc = projectGroup.isLibrary ? buildLibProject : buildAppProject;
+    for (var project of projectGroup.projects) {
+        let p = project; // closure
+        buildActions.push(() => buildFunc(p, projectGroup));
+    }
+    return runParallel(buildActions);
+}
+
 // Builds a project group (e.g. editor, plugins, samples, or tests)
 function buildProjectGroup(projectGroup) {
     outputTaskHeader("Build " + projectGroup.name);
     return runSeries([
         () => precopyRequiredFiles(projectGroup),
-        () => projectGroup.isLibrary ? buildLibProjects(projectGroup) : buildAppProjects(projectGroup)
+        () => buildProjects(projectGroup)
     ]);
 }
 
