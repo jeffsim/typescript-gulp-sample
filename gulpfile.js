@@ -18,7 +18,7 @@ var concat = require("gulp-concat"),
 
 
 // Q: Why isn't tsc problem matcher working?
-// A: Because pattern matchers don't (yet) apply to output window, which only works with aboslute paths
+// A: Because pattern matchers don't (yet) apply to output window, which only works with absolute paths
 // SEE: https://github.com/Microsoft/vscode/issues/6217
 
 var settings = {
@@ -49,6 +49,24 @@ var settings = {
 // Used to store global info
 var globals = {};
 
+
+// Bundle definition
+var bundle = {
+    baseName: "duality",
+    version: "0.0.1",
+
+    // For the first build, bundle.modifiedBundleCache is empty.  This will force a build of all files the first time
+    // a build is run; but that's unavoidable as we have no idea if the files have changed...
+    modifiedBundleCache: {}
+};
+
+// Generate file output file names; these include version stamp; e.g. 'duality-0.1.1.debug.js'
+var bundleNameVer = bundle.baseName + "-" + bundle.version;
+bundle.debugFilename = bundleNameVer + ".debug.js";
+bundle.minFilename = bundleNameVer + ".min.js";
+bundle.typingFilename = bundleNameVer + ".d.ts";
+
+// TODO: Don't copy built-in-plugin d.ts files in dist/typings
 
 // ====================================================================================================================
 // ======= PROJECTS ===================================================================================================
@@ -83,7 +101,6 @@ var globals = {};
 // Defines the main editor project group
 var editor = {
     name: "Editor",
-    version: "0.0.1",
     isLibrary: true,
     projects: [{
         name: "editor",
@@ -91,11 +108,6 @@ var editor = {
         includeInBundle: true
     }]
 }
-
-// Generate file output file names; these include version stamp; e.g. 'duality-0.1.1.debug.js'
-var dualityDebugFileName = "duality-" + editor.version + ".debug.js";
-var dualityMinFileName = "duality-" + editor.version + ".min.js";
-var dualityTypingFileName = "duality-" + editor.version + ".d.ts";
 
 // Defines all of the plugins that are built
 var plugins = {
@@ -124,7 +136,7 @@ var tests = {
     isLibrary: false,
     tsConfigFile: "tests/tsconfig.json",
     commonFiles: ["tests/typings/*.d.ts"],
-    filesToPrecopyOnce: [{ src: "dist/typings/" + dualityTypingFileName, dest: "tests/typings" }],
+    filesToPrecopyOnce: [{ src: "dist/typings/" + bundle.typingFilename, dest: "tests/typings" }],
     projects: [{
         name: "test1",
         path: "tests/test1",
@@ -139,7 +151,7 @@ var samples = {
     name: "Samples",
     isLibrary: false,
     // All projects in this group have these files copied into their sample folders.  Built files typically go here.
-    filesToPrecopyToAllProjects: [{ src: "dist/typings/" + dualityTypingFileName, dest: "typings" }],
+    filesToPrecopyToAllProjects: [{ src: "dist/typings/" + bundle.typingFilename, dest: "typings" }],
     projects: [{
         name: "testApp",
         path: "samples/testApp",
@@ -177,6 +189,7 @@ function buildLibProject(project, projectGroup) {
 
 // Build a single library project
 //      Transpiles TS into JS and flattens JS into single "*-debug.js" file.
+//      Is included in the bundled output file if includeInBundle == true
 //      Places flattened transpiled JS file in /dist folder
 function buildLib(project, projectGroup) {
     var taskTracker = new TaskTracker("buildLib", project);
@@ -320,7 +333,7 @@ function buildBundledJS() {
 
 // Takes the pre-built duality*-debug.js file and bundle/minify it into duality*-min.js
 function minifyBundledJS() {
-    return buildBundle(["dist/" + dualityDebugFileName], true, "Minify bundled JS");
+    return buildBundle(["dist/" + bundle.debugFilename], true, "Minify bundled JS");
 }
 
 // This is passed in one or more already built files (with corresponding sourcemaps); it bundles them into just
@@ -329,8 +342,8 @@ function buildBundle(sourceFiles, minify, taskName) {
     var taskTracker = new TaskTracker(taskName);
     return gulp.src(sourceFiles)
         .pipe(sourcemaps.init({ loadMaps: true }))
-        .pipe(gulpIf(!minify, concat(dualityDebugFileName)))
-        .pipe(gulpIf(minify, rename(dualityMinFileName)))
+        .pipe(gulpIf(!minify, concat(bundle.debugFilename)))
+        .pipe(gulpIf(minify, rename(bundle.minFilename)))
         .pipe(gulpIf(minify, uglify()))
         .pipe(sourcemaps.write(".", {
             includeContent: false, sourceRoot: "/",
@@ -351,7 +364,7 @@ function buildBundledDTS() {
         if (plugin.includeInBundle)
             files.push(joinPath("dist/typings", plugin.name + ".d.ts"));
     return gulp.src(files)
-        .pipe(concat(dualityTypingFileName))
+        .pipe(concat(bundle.typingFilename))
         .pipe(gulp.dest("dist/typings"))
         .on("end", () => taskTracker.end());
 }
@@ -362,7 +375,7 @@ function buildBundledDTS() {
 
 // Builds a single App project
 //      Places transpiled JS files alongside source TS files
-//      Doesn't flatten transpiled JS files into single js file.
+//      Not included in the bundled output file
 //      Doesn't build minified versions
 //      Doesn't output Typings
 function buildAppProject(project, projectGroup) {
@@ -556,12 +569,8 @@ Commented out as I can't actually use these for incremental file-level compilati
 // Outputs (to console) the list of files in the current stream
 function outputFilesInStream(taskName) {
     return through.obj(function (file, enc, callback) {
-        if (settings.verboseOutput) {
-            // we compile d.ts files, but don't babble about them here.
-            if (file.relative.indexOf(".d.ts") == -1)
-                console.log("[" + taskName + "]: Dirty source file: " + file.relative);
-        }
-
+        if (settings.verboseOutput)
+            console.log("[" + taskName + "]: Dirty source file: " + file.relative);
         this.push(file);
         return callback();
     });
@@ -664,18 +673,14 @@ function checkCanSkipBuildBundle() {
     if (!settings.incrementalBuild)
         return null;
 
-    // If this is first build, then globals.modifiedBundleCache is empty.  In that case, then create the modified
-    // file cache for later comparison.  Continue so that we can populate the cache with first run values.
-    globals.modifiedBundleCache = globals.modifiedBundleCache || {};
-
-    // If here, then bundle has been previously built, and globals.modifiedBundleCache contains info.  Compare against
+    // If here, then bundle has been previously built, and bundle.modifiedBundleCache contains info.  Compare against
     // current state; if ANY file, then rebuild the bundle
     var filesToCheck = ["bld/editor/editor-debug.js"];
     for (var plugin of plugins.projects)
         if (plugin.includeInBundle)
             filesToCheck.push("bld/" + plugin.path + "/" + plugin.name + "-debug.js");
 
-    var fileHasChanged = checkForChangedFile(filesToCheck, globals.modifiedBundleCache);
+    var fileHasChanged = checkForChangedFile(filesToCheck, bundle.modifiedBundleCache);
 
     // If any files have changed then return null, signifying need to recreate the bundle
     if (fileHasChanged)
