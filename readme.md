@@ -107,6 +107,8 @@
   - See section on ordering files below.
 
 # Debug and minified builds
+  
+  - TODO
 
 # Incremental Builds
 
@@ -180,7 +182,7 @@ class, it can't.
 So: when compiling Typescript, you need to order your classes so that base classes come first.  You have a couple of
 options here:
 
-1 - Specify the order in build.
+#### Option 1: Specify the order in build.
 
 e.g. Instead of:
 
@@ -195,12 +197,12 @@ This works, but in an eye-roll-y sort of way; and in a way that only becomes ugl
 that you add.  It also moves management of the dependency out of the dependent file (the derived class) and into the
 build system, which just sounds wonky.
 
-2 - Use external modules and use 'requires'
+#### Option 2: Use external modules and use 'requires'
 
 Perfectly reasonable approach, but one that I haven't dug into here since I'm not using external modules.  Note that this
 suffers from some of the same challenges as option 3 (having to be explicit about id'ing dependencies in the code)
 
-3 - Use /// \<reference path="..."/>
+#### Option 3: Use /// \<reference path="..."/>
 
 Similar to 'requires' with external modules, you can explicitly define the dependency in the source file and the compiler
 takes care of the ordering for you.
@@ -235,7 +237,7 @@ that dependency isn't present...
   - Generating definition files (.d.ts)
     - Goal: \*.d.ts files get generated for every library and the bundle
     - What not to do: use built-in typescript/vscode
-      - Why?
+      - todo: recap why this didn't work.
     - What to do
   - Using 3PP libraries &amp; typings
     - Don&#39;t have details on this yet.  I&#39;ve stumbled my way into adding jquery to the project as a test and it works; but the recent (?) move to &#39;typings&#39; has left a lot of dated info out there on how best to do this.  I need to dig more into this.
@@ -256,14 +258,19 @@ that dependency isn't present...
     - Why write my own?  To allow me to at-run-time opt to force serialization of all tasks
   - Promises and Streams
 
-# Tsconfig
+# tsconfig.json
 
-  - Different approaches; one top level, one per projectgroup (tests), one per project (sample)
-  - Why I did it this way:  a test, really.  I assumed at some level that I&#39;ll eventually run into a project that needed different tsconfig settings, so I built support for it.
+  - Different approaches; one top level, one per projectgroup (eg the tests projectgroup does this),
+   one per project (e.g. the samples projectgroup does this).
+  - Why I did it this way: two reasons:
+    1. Different projects may have different tsconfig needs; e.g. the editor project defines outFile, while the other projects don't
+    2. I want to make the samples projects more standalone.
   - How to specify: &lt;setting in project/projectgroup defn&gt;
   - See note in ambient typings section about how tsconfig.json impacts them.
 
 # taskTracker
+  
+  - TODO
 
 # Sourcemap-based debugging
 
@@ -308,4 +315,3 @@ that dependency isn't present...
     - Implemented my own &quot;gulp-changed-in-place&quot; which uses timestamps instead of hashes for speed.  Can be found in the commented-out filterToChangedFiles function.
   - Outputing files in stream
     - See outputFilesInStream
-
