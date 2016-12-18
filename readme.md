@@ -10,12 +10,11 @@
   - Bundling library output into a single js file using namespaces (not external modules)
   - Proper ordering of files (e.g. baseclasses before derived classes) in the build
   - Ambient typings working throughout while editing
-  - Generation of a bundled d.ts file for your project
+  - Generation of d.ts files for not-built-in plugins and an all-up bundled d.ts for everthing bundled
+  - File- and Project-level incremental compilation
   - How to get one gulpfile to work with multiple projects and multiple tsconfigs
-  - VS Code environment
   - debug and minified builds
   - Sourcemap-based debugging
-  - Incremental compilation (so fast!)
   - Including 3PP library and d.ts (jquery)
   - Wallaby-based test runner
 - The overall project; Duality
@@ -136,11 +135,98 @@
 
 # Ordering files for typescript build
 
-  - Base and derived; \*.ts not sufficient to guarantee order
-  - Option 1: specify order in build. Works, but in an eye-roll-y sort of way
-  - Option 2: external modules and requires.  Not here since not using external modules
-  - Option 3: /// reference.  Works, but bit of upfront and ongoing &quot;ugh, right&quot; effort.
-  - Went with option 1 first, then opted for 3, because reasons.
+Imagine that you have the following files:
+
+```
+// Creature.ts
+class Creature {
+    constructor() {
+      console.log("Creature (base class)");
+    }
+}
+```
+... and:
+```
+// Animal.ts
+class Animal extends Creature {
+    constructor() {
+      console.log("Animal (derived class)");
+    }
+}
+```
+... and let's say you transpile and bundle those into a file called "bundle.js" using something like this:
+```
+  gulp.src(["**\*.ts"])
+    .pipe(ts())
+    .pipe(concat("bundle.js"))
+    .pipe(dest(".")
+```
+
+Everything works until you run it and get the following:
+
+*(todo: include error)*
+
+Take a look at the output:
+
+*(todo: include bundle.js)*
+
+The problem is that the derived class (Animal) is getting defined before the base class (Creature)
+has beeen defined, and when it tries to complete the definition of Animal by calling super on the (at-the-time-nonexistent) Creature
+class, it can't. 
+
+*TODO: Double-check that the above is exactly what's happening.  I believe it to be the case, but something keeps making*
+*me wonder why they couldn't make the completion of the definition more late-binding, after the file has been loaded.*
+
+So: when compiling Typescript, you need to order your classes so that base classes come first.  You have a couple of
+options here:
+
+1 - Specify the order in build.
+
+e.g. Instead of:
+
+```
+gulp.src(["**\*.ts"])
+```
+... use:
+```
+gulp.src(["Creature.ts", "Animal.ts])
+```
+This works, but in an eye-roll-y sort of way; and in a way that only becomes uglier the more files (and dependencies)
+that you add.  It also moves management of the dependency out of the dependent file (the derived class) and into the
+build system, which just sounds wonky.
+
+2 - Use external modules and use 'requires'
+
+Perfectly reasonable approach, but one that I haven't dug into here since I'm not using external modules.  Note that this
+suffers from some of the same challenges as option 3 (having to be explicit about id'ing dependencies in the code)
+
+3 - Use /// \<reference path="..."/>
+
+Similar to 'requires' with external modules, you can explicitly define the dependency in the source file and the compiler
+takes care of the ordering for you.
+
+*TODO: Is it accurate to say "this is the namespace (internal module) equivalent to external modules' "requires"? Or*
+*does this also apply to external modules?*
+
+So in the Animal.ts/Creature.ts example above, all you'd do is change Animal.ts as following:
+
+```
+/// <reference path="Visual.ts"/>
+class Animal extends Creature {
+    constructor() {
+      console.log("Animal (derived class)");
+    }
+}
+```
+Now when you compile, it works.
+This option (as with option 2) requires more upfront and ongoing effort to expressly communicate the dependencies to the
+compiler.
+
+For this project, I started with option 1 first, but as the number of files got larger and larger I felt grosser and
+grosser about managing this large list of files.  I then moved onto option 3 and haven't looked back.  That said: the
+management of the dependencies through the 'reference' tags still makes me uncomfortable, because if you miss one you 
+might not catch the issue until much later when some other build change changes the order of compilation and suddenly
+that dependency isn't present...
 
 # Typings
 
@@ -167,9 +253,7 @@
     - &lt;what probably doesn&#39;t work?&gt;
   - Running a collection of tasks in parallel; e.g. build samples 1, 2, and 3
     - Approaches: eventStream.merge.  works perfectly fine.
-    - Why write my own?  To learn!
-    - &lt;what&#39;s interesting about it?&gt;
-    - &lt;what probably doesn&#39;t work?&gt;
+    - Why write my own?  To allow me to at-run-time opt to force serialization of all tasks
   - Promises and Streams
 
 # Tsconfig
