@@ -26,28 +26,24 @@
 
 # To run it
 
--
   - npm install (in the root)
   - load  in vs code and drop some breakpoints in to ensure that source maps are working as you expect, build, and F5.
   - To see the test runner work, just load tests.html.
 
 # VS Code
 
--
   - Because I&#39;m ex-Microsoft, and anything with &quot;VS&quot; in it gets my love.  Besides which, it&#39;s good!
   - I assume most of this works fairly well in other quasi-IDEs like Atom, but I haven&#39;t tried it yet.  I&#39;ll get to it eventually; but if that (or something else) is your environment of choice and you get it to work, then I&#39;d love to add that in!
   - Note: I&#39;m likely going to conflate the precise roles of Typescript and VS Code in this document; the lines between them blur at times for me.  I&#39;ll fix any incorrect assumptions over time.
 
 # Using gulp and tasks
 
--
   - Gulpfile.js and vs code tasks
   - Why not gulpfile.ts?  you can actually do this (links), and the appeal of proper classes here is hard to say no to; but the extra compile step makes me itchy, and I want to wait until everything else is rock-stable before introducing that.
   - Why one file? You can break it apart (links), but I haven&#39;t tackled that yet.
 
 # Project system
 
--
   - Projectgroups and projects
     - My approach to localizing code
     - One gulpfile compiles all of them
@@ -58,7 +54,6 @@
 
 # Folders
 
--
   - /bld
   - /dist
   - /editor
@@ -72,14 +67,12 @@
 
 # Managing and moving files between projects at build time.
 
--
   - Building – files can be built into /dist or into source folder
   - Files can be precopied at projectgroup or project level
   - Files can be included without being copied (commonfiles).  Avoids.. duplication?
 
 # Bundling
 
--
   - Options:
     - Typescript&#39;s --out option.  Todo: why did I lean away from this one?
     - external modules and requires: didn&#39;t do this as I want a single bundled file and single network call.  I assume there&#39;s a magical way to start with this approach and have the build process do the bundle (an amorphous blob of phrases like webpack (todo: and others) comes to mind), but I didn&#39;t track that one down.  Besides: coming out of .net, it&#39;s hard to say no to namespaces.
@@ -94,7 +87,6 @@
 
 # Incremental Builds
 
--
   - What not to do: gulp-changed-in-place
     - This is what I naively started with.
     - Works great in lot of situations; but not a typescript one
@@ -120,7 +112,6 @@
 
 # Ordering files for typescript build
 
--
   - Base and derived; \*.ts not sufficient to guarantee order
   - Option 1: specify order in build. Works, but in an eye-roll-y sort of way
   - Option 2: external modules and requires.  Not here since not using external modules
@@ -129,7 +120,6 @@
 
 # Typings
 
--
   - Ambient typings
     - Tsconfig.json folder-level
   - Generating definition files (.d.ts)
@@ -142,7 +132,6 @@
 
 # Tasks, runSeries and runParallel
 
--
   - &quot;I want to pass parameters to my task rather than have do-thing-project1, do-thing-project2, do-thing-project3&quot;
     - Yeah, I did too.  Short version: no.  &lt;link&gt;
     - Alternative: write top-level tasks that quickly drop into functions.
@@ -161,7 +150,6 @@
 
 # Tsconfig
 
--
   - Different approaches; one top level, one per projectgroup (tests), one per project (sample)
   - Why I did it this way:  a test, really.  I assumed at some level that I&#39;ll eventually run into a project that needed different tsconfig settings, so I built support for it.
   - How to specify: &lt;setting in project/projectgroup defn&gt;
@@ -171,7 +159,6 @@
 
 # Sourcemap-based debugging
 
--
   - Okay, so after all of the above, we finally get to the whole point of this thing: debugging
   - How sourcemaps work.
     - Sources, sourceRoot
@@ -187,19 +174,16 @@
 
 # Debugging the gulpfile
 
--
   - Gulp task to debug gulpfile.js
 
 # Running tests
 
--
   - Wallaby
   - Tests.html
   - Typings; jasmine.  Shared copy of duality
 
 # Lessons learned/what if I see &quot;error: X&quot;
 
--
   - Note: all are as of time of writing.  Thx to internet reality, likely out of date by the time you read this.  Hello future reader!
   - problemMatchers don&#39;t work with output window
   - debugging with chrome
