@@ -20,6 +20,7 @@
   - Wallaby-based test runner
 - The overall project; Duality
   - Editor + Plugins + Tests + Samples
+- The project in this repo is NOT intended to be 'real' - it contains a few source files and projects to test and prove out the build system.  I'll eventually link to the real project that this will support (called 'duality') once that's in shareable shape.
 - The main thing I&#39;m trying to properly support with this is Typescript, because (1) I really like it, and (2) it can be a PITA to get a full dev environment set up for a complex project with proper ambient typings, no &quot;duplicate symbol&quot; warnings, etc.
 - This started simple, but has added more functionality and more abstraction over time.
 - This document: me documenting how I tackled each aspect.  There are likely better ways to do parts of this; if so, I&#39;d love to know about it!
@@ -44,26 +45,36 @@
 
 # Project system
 
-  - Projectgroups and projects
-    - My approach to localizing code
+  - ProjectGroups and Projects
+    - My approach to making code more contained and manageable.
     - One gulpfile compiles all of them
   - Two types of projects: apps and libs
-    - Libs: minimized, transpiled files placed in dist, d.ts files gen&#39;ed
-    - Apps: standalone, not minimized, transpiled files placed next to sources, no d.ts file gen&#39;ed
+    - This build env handles two different types of projects; applications and libraries
+    - Libs: minimized, transpiled files placed in dist, d.ts files gen'ed
+      - Examples: Editor, Plugins
+    - Apps: standalone, not minimized, transpiled files placed next to sources, no d.ts file gen'ed
+      - Examples: Samples, Tests
   - Fields (include from comments)
 
 # Folders
 
   - /bld
+    - This is where built files for libraries are put.  Built files for apps end up alongside the apps' sourcecode
   - /dist
+    - This is where final deliverables for the bundle, non-built-in plugins, and all built typings are placed
+    - TODO: currently putting built-in-plugin d.ts files here; no need.
   - /editor
-    - libs
+    - This is the main project.  It's a library.
   - /plugins
-    - Libs
+    - Contains a collection of 'built-in' and 'non-built-in' libraries
+    - Built-in plugins are automatically included in the final bundle.  These are plugins that I expect every project will use, so they're "built in" to the bundle.  These could also go in the Editor project, but I've separated them for cleanliness's sake
+    - Non-built in plugins are plugins that I will provide, but not every project will use them, so they aren't included in the bundle.  An app that uses one of these plugins would include the files output into /dist/plugins/<plugin-name>
   - /samples
-    - apps
+    - Contains a collection of sample applications which include and use Duality.
+    - Each sample has an index.html that can be directly loaded (but your webroot needs to be at the root of this repo's files)
   - /tests
-    - Apps
+    - Contains a collection of tests that demonstrate how to use wallaby to verify functionality of Duality and the plugins.
+    - Contains a single tests.html file that can be directly loaded (but your webroot needs to be at the root of this repo's files)
 
 # Managing and moving files between projects at build time.
 
