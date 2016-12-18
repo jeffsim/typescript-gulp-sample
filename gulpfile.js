@@ -626,24 +626,31 @@ function checkCanSkipBuildProject(project) {
     var files = project.files || ["**/*.ts"];
     var filesToCheck = [];
     var globFiles = glob.sync(joinPath(project.path, files));
-    for (var projectFile of globFiles)
-        filesToCheck.push(projectFile);
 
-    var fileHasChanged = checkForChangedFile(filesToCheck, project.modifiedFilesCache);
+    // If project doesn't have any .ts files (e.g. it only has .js) then nothing to compile.
+    // Bit tricky here; project *could* have .d.ts files; if it only has those, then don't compile
+    var hasFilesToCompile = false;
+    for (var file of globFiles)
+        if (file.indexOf(".ts") != -1 && file.indexOf(".d.ts") == -1) {
+            hasFilesToCompile = true;
+            break;
+        }
 
-    // TODO: I still need to precopy precopied files: scenario 2 -
-    //  1. user starts a build; testApp fails because Duality.TextBox doesn't exist in duality.js
-    //  2. user adds Duality.TextBox and rebuilds.  Duality.TextBox now exists in duality.js
-    //  3. user goes into the testApp project; duality.textbox doesn't resolve as the d.ts wasn't copied
-    // SO: This states that the precopy should still run whenever the source changes (which I'm not currently doing)...
+    if (!hasFilesToCompile) {
+        console.log(getTimeString(new Date()) + " -- SKIPPING (" + project.name + "): no files to compile");
+    } else {
+        for (var projectFile of globFiles)
+            filesToCheck.push(projectFile);
+        var fileHasChanged = checkForChangedFile(filesToCheck, project.modifiedFilesCache);
 
-    // If any files have changed then return null, signifying need to recompile Project
-    if (fileHasChanged)
-        return null;
+        // If any files have changed then return null, signifying need to recompile Project
+        if (fileHasChanged)
+            return null;
 
-    // If here, then no files in the project have changed; skip!
-    if (settings.verboseOutput)
-        console.log(getTimeString(new Date()) + " -- SKIPPING (" + project.name + "): no files changed");
+        // If here, then no files in the project have changed; skip!
+        if (settings.verboseOutput)
+            console.log(getTimeString(new Date()) + " -- SKIPPING (" + project.name + "): no files changed");
+    }
 
     // Create and end a stream; caller will pass this on back up the chain.
     var stream = through();
