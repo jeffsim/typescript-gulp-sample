@@ -27,15 +27,15 @@
 
 # To run it
 
-  - npm install (in the root)
-  - load  in vs code and drop some breakpoints in to ensure that source maps are working as you expect, build, and F5.
+  - npm install (in the project root folder)
+  - load the project in vs code and drop some breakpoints in to ensure that source maps are working as you expect, build, and F5.
   - To see the test runner work, just load tests.html.
 
 # VS Code
 
   - Because I&#39;m ex-Microsoft, and anything with &quot;VS&quot; in it gets my love.  Besides which, it&#39;s good!
   - I assume most of this works fairly well in other quasi-IDEs like Atom, but I haven&#39;t tried it yet.  I&#39;ll get to it eventually; but if that (or something else) is your environment of choice and you get it to work, then I&#39;d love to add that in!
-  - Note: I&#39;m likely going to conflate the precise roles of Typescript and VS Code in this document; the lines between them blur at times for me.  I&#39;ll fix any incorrect assumptions over time.
+  - Note: I&#39;m likely going to conflate the precise roles of Typescript and VS Code in this document; the lines between them blur at times for me (e.g. around tasks and tsconfig).  I&#39;ll fix any incorrect assumptions over time.
 
 # Using gulp and tasks
 
