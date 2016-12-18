@@ -4,14 +4,22 @@ var concat = require("gulp-concat"),
     del = require("del"),
     dtsGenerator = require("dts-generator"),
     eventStream = require("event-stream"),
+    fs = require("fs"),
+    glob = require("glob"),
     gulp = require("gulp"),
     gulpIf = require("gulp-if"),
+    path = require("path"),
+    preservetime = require("gulp-preservetime"),
     rename = require("gulp-rename"),
     sourcemaps = require("gulp-sourcemaps"),
     through = require('through2'),
     tsc = require("gulp-typescript"),
     uglify = require("gulp-uglify");
 
+
+// Q: Why isn't tsc problem matcher working?
+// A: Because pattern matchers don't (yet) apply to output window, which only works with aboslute paths
+// SEE: https://github.com/Microsoft/vscode/issues/6217
 
 var settings = {
     // Dump extra output during the build process
@@ -21,19 +29,25 @@ var settings = {
     // are having build issues and want cleaner output.
     forceSerializedTasks: false,
 
-    // true if we should do an incremental (oh so fast) build.  rebuild all sets this to false
-    //
-    // Removed as it turns out that (obviously, in retrospect) you can't filter down just to changed files, as TSC
-    // needs all files to compile properly.  using gulp.watch maintains some state to reduce compilation time (about
-    // 10% in this sample on this machine.  I suspect a 'real' project with more files to compile would see more 
-    // improvement).
+    // Set to true to enable project-level incremental builds.  File-level incremental builds are handled by a
+    // persistent 'watch' task, as TSC needs all files to compile properly.  Using gulp.watch maintains some state to
+    // reduce compilation time (about 10% in this sample on this machine.  I suspect a 'real' project with more files
+    // to compile would see more improvement).
     // Another option is to use isolatedModules:true in tsconfig, but that requires external modules which this
     // sample doesn't use.  Leaving these in now though as someday (looks wistfully into the distance) this may work
     // Ref:
     //  https://github.com/ivogabe/gulp-typescript/issues/228
     //  https://github.com/mgechev/angular-seed/wiki/Speeding-the-build-up
-    // incrementalBuild: true,
+    incrementalBuild: true,
+
+    // By default, an incremental build would rebuild if *any* file changes, including d.ts files.  However, I *think*
+    // that you can get away with skipping recompilation of a project if only d.ts files have changed.  This field
+    // manages that.  If you're seeing weird incremental build behavior then try setting this to true, and let me know
+    recompiledOnDTSChanges: false
 };
+
+// Used to store global info
+var globals = {};
 
 
 // ====================================================================================================================
@@ -145,7 +159,13 @@ var samples = {
 
 // For a single given library project, build it, then minify it, and then generate a d.ts file for it
 function buildLibProject(project, projectGroup) {
-    // First build the library; then in parallel minify it and build d.ts file.
+    // Check for incremental build and nothing changed; if that's the case, then emit "no build needed" and skip it
+    // Returns a stream object that can be returned directly.
+    var skipStream = checkCanSkipBuildProject(project);
+    if (skipStream)
+        return skipStream;
+
+    // Build the library; then in parallel minify it and build d.ts file.
     return runSeries([
         () => buildLib(project, projectGroup),
         () => runParallel([
@@ -267,7 +287,14 @@ function buildLibDefinitionFile(project) {
 // ======= BUILD BUNDLED EDITOR AND BUILT-IN PLUGINS ==================================================================
 
 function bundleEditorAndPlugins() {
+
     outputTaskHeader("Build Bundle");
+
+    // If none of the files that we're going to bundle have changed then don't build bundle.
+    // Returns a stream object that can be returned directly.
+    var skipStream = checkCanSkipBuildBundle();
+    if (skipStream)
+        return skipStream;
 
     var stream = through();
     // First build the bundled "duality*.js" file
@@ -339,6 +366,11 @@ function buildBundledDTS() {
 //      Doesn't build minified versions
 //      Doesn't output Typings
 function buildAppProject(project, projectGroup) {
+    // Check for incremental build and nothing changed; if that's the case, then emit "no build needed" and skip it
+    // Returns a stream object that can be returned directly.
+    var skipStream = checkCanSkipBuildProject(project);
+    if (skipStream)
+        return skipStream;
 
     var taskTracker = new TaskTracker("buildAppProject", project);
 
@@ -452,11 +484,6 @@ function joinPath(path, file) {
     return (path + '/' + file).replace(/\/{2,}/, '/');
 }
 
-// Copies a file from the source location to the dest location
-function copyFile(src, dest) {
-    return gulp.src(src).pipe(gulp.dest(dest));
-}
-
 // Copies any previously built files into the ProjectGroup's Projects.
 function precopyRequiredFiles(projectGroup) {
     var taskTracker = new TaskTracker("precopyRequiredFiles");
@@ -495,14 +522,14 @@ function outputTaskHeader(taskName) {
 
 // Outputs task start and end info to console, including task run time.
 function TaskTracker(taskName, project) {
-    if (!settings.verboseOutput)
-        return;
-    var startTime = new Date();
-    var startTimeStr = startTime.toTimeString().replace(/.*(\d{2}:\d{2}:\d{2}).*/, "$1");
-    var outStr = "[" + startTimeStr + "] Starting " + taskName;
-    if (project)
-        outStr += " (" + project.name + ")";
-    console.log(outStr);
+    if (settings.verboseOutput) {
+        var startTime = new Date();
+        var startTimeStr = getTimeString(startTime);
+        var outStr = startTimeStr + " Starting " + taskName;
+        if (project)
+            outStr += " (" + project.name + ")";
+        console.log(outStr);
+    }
 
     return {
         end: function () {
@@ -510,18 +537,21 @@ function TaskTracker(taskName, project) {
                 return;
             var endTime = new Date();
             var delta = (endTime - startTime) / 1000;
-            var endTimeStr = endTime.toTimeString().replace(/.*(\d{2}:\d{2}:\d{2}).*/, "$1");
+            var endTimeStr = getTimeString(endTime);
             if (project)
-                console.log("[" + endTimeStr + "] Finished " + taskName + " (" + project.name + ") after " + delta + " s");
+                console.log(endTimeStr + " Finished " + taskName + " (" + project.name + ") after " + delta + " s");
             else
-                console.log("[" + endTimeStr + "] Finished " + taskName + " after " + delta + " s");
+                console.log(endTimeStr + " Finished " + taskName + " after " + delta + " s");
         }
     };
 };
 
+function getTimeString(time) {
+    return "[" + time.toTimeString().replace(/.*(\d{2}:\d{2}:\d{2}).*/, "$1") + "]";
+}
+
 /*
-Commented out as I can't actually use these for incremental compilation (see the comment before one of the calls to
-filterToChangedFiles for details).  Leaving in as I may use them one day...
+Commented out as I can't actually use these for incremental file-level compilation.  Leaving in as I may use them one day...
 
 // Outputs (to console) the list of files in the current stream
 function outputFilesInStream(taskName) {
@@ -541,19 +571,140 @@ function outputFilesInStream(taskName) {
 var dirtyFileCache = {};
 function filterToChangedFiles() {
     return through.obj(function (file, encoding, done) {
-        var lastModifiedTime = file.stat.mtime.valueOf();
+        var lastModifiedTime = file.statSync.mtime.valueOf();
         var cachedTime = dirtyFileCache[file.path];
         if (!cachedTime || (cachedTime != lastModifiedTime)) {
             // we've seen the file before and the lastModifiedTime has changed then pass it through; otherwise, drop it
             dirtyFileCache[file.path] = lastModifiedTime;
             this.push(file);
-        } else if (file.relative.indexOf(".d.ts") != -1) {
-            // Pass d.ts files through even if they haven't changed, so that they're always present for the compiler.
-            this.push(file);
         }
         done();
     });
 }*/
+
+
+// Copies a file from the source location to the dest location
+// This only supports copying a (glob of files) into a folder; destPath cannot be a specific filename.
+function copyFile(src, destPath) {
+    // Incremental builds need to maintain the src's modified time in the dest copy, but gulp.src.dest doesn't do that
+    // Automatically.  So: call preservetime.
+    // See http://stackoverflow.com/questions/26177805/copy-files-with-gulp-while-preserving-modification-time
+    return gulp.src(src)
+        .pipe(gulp.dest(destPath))
+        .pipe(gulpIf(settings.incrementalBuild, preservetime()));
+}
+
+
+// ====================================================================================================================
+// ======= INCREMENTAL BUILD SUPPORT ==================================================================================
+
+// The Typescript compiler requires that all files be included, even those that haven't changed; therefore we can't 
+// blindly use something like gulp-changed-in-place, which would just filter out unchanged files.  What we *can* do is:
+//
+//  1. Maintain an always-running 'watch' task which internally maintains some degree of state about a build and saves
+//     some time when rebuilding (~15% in this project, presumably more in others).  This is what the 'watch' task does.
+//  2. Maintain a *project-wide* modified state and skip building the entire project if nothing in the project (or its
+//     dependencies have changed).  That's what checkCanSkipBuildProject does
+
+// Checks if anything in the project has been modified and the project needs to be rebuilt; if so, returns null
+// If the project can be skipped, then returns a stream that can be returned from the caller.
+function checkCanSkipBuildProject(project) {
+
+    // Check if incremental builds are enabled
+    if (!settings.incrementalBuild)
+        return null;
+
+    // If this is first build, then modifiedFilesCache is empty.  In that case, then create the modified file cache for
+    // later comparison.  Continue so that we can populate the cache with first run values.
+    project.modifiedFilesCache = project.modifiedFilesCache || {};
+
+    // If here, then project has been previously built, and project.modifiedFilesCache contains info.  Compare against
+    // current state; if ANY project file has changed, then rebuild.
+    var fileHasChanged = false;
+
+    // Generate list of files in the project that we should check
+    var files = project.files || ["**/*.ts"];
+    var filesToCheck = [];
+    var globFiles = glob.sync(joinPath(project.path, files));
+    for (var projectFile of globFiles)
+        filesToCheck.push(projectFile);
+
+    var fileHasChanged = checkForChangedFile(filesToCheck, project.modifiedFilesCache);
+
+    // TODO: I still need to precopy precopied files: scenario 2 -
+    //  1. user starts a build; testApp fails because Duality.TextBox doesn't exist in duality.js
+    //  2. user adds Duality.TextBox and rebuilds.  Duality.TextBox now exists in duality.js
+    //  3. user goes into the testApp project; duality.textbox doesn't resolve as the d.ts wasn't copied
+    // SO: This states that the precopy should still run whenever the source changes (which I'm not currently doing)...
+
+    // If any files have changed then return null, signifying need to recompile Project
+    if (fileHasChanged)
+        return null;
+
+    // If here, then no files in the project have changed; skip!
+    if (settings.verboseOutput)
+        console.log(getTimeString(new Date()) + " -- SKIPPING (" + project.name + "): no files changed");
+
+    // Create and end a stream; caller will pass this on back up the chain.
+    var stream = through();
+    stream.resume().end();
+    return stream;
+}
+
+function checkCanSkipBuildBundle() {
+
+    // Check if incremental builds are enabled
+    if (!settings.incrementalBuild)
+        return null;
+
+    // If this is first build, then globals.modifiedBundleCache is empty.  In that case, then create the modified
+    // file cache for later comparison.  Continue so that we can populate the cache with first run values.
+    globals.modifiedBundleCache = globals.modifiedBundleCache || {};
+
+    // If here, then bundle has been previously built, and globals.modifiedBundleCache contains info.  Compare against
+    // current state; if ANY file, then rebuild the bundle
+    var filesToCheck = ["bld/editor/editor-debug.js"];
+    for (var plugin of plugins.projects)
+        if (plugin.includeInBundle)
+            filesToCheck.push("bld/" + plugin.path + "/" + plugin.name + "-debug.js");
+
+    var fileHasChanged = checkForChangedFile(filesToCheck, globals.modifiedBundleCache);
+
+    // If any files have changed then return null, signifying need to recreate the bundle
+    if (fileHasChanged)
+        return null;
+
+    // If here, then no files that we'd bundle have changed; skip!
+    if (settings.verboseOutput)
+        console.log(getTimeString(new Date()) + " -- SKIPPING BUNDLE: no files changed");
+
+    // Create and end a stream; caller will pass this on back up the chain.
+    var stream = through();
+    stream.resume().end();
+    return stream;
+}
+
+function checkForChangedFile(filesToCheck, modifiedCache) {
+    var fileHasChanged = false;
+
+    for (var file of filesToCheck) {
+        var stat = fs.statSync(file);
+        var lastModifiedTime = stat.mtime.valueOf();
+        var lastSeenModifiedTime = modifiedCache[file];
+        if (lastModifiedTime != lastSeenModifiedTime) {
+            // File has changed; track change.  Since we're going to rebuild, continue comparing 
+            // file change times and updating the latest
+            modifiedCache[file] = lastModifiedTime;
+            
+            // if recompiledOnDTSChanges is false, and the file is a d.ts file, then we do not trigger a recompilation.
+            if (!settings.recompiledOnDTSChanges && file.indexOf(".d.ts") > -1)
+                continue;
+
+            fileHasChanged = true;
+        }
+    }
+    return fileHasChanged;
+}
 
 
 // ====================================================================================================================
@@ -596,13 +747,12 @@ function buildDuality() {
 
 // Does a complete rebuild
 gulp.task("rebuild-all-duality", function () {
-    console.log("=====================================================");
+    console.log("");
     if (settings.forceSerializedTasks)
         console.log("== Forcing serialized tasks ==");
-    
+
     // Don't do an incremental build
-    // See comment before definition of settings.incrementalBuild for reason why this is commented out.
-    // settings.incrementalBuild = false;
+    settings.incrementalBuild = false;
 
     // Clean and then build.
     return runSeries([
@@ -613,27 +763,32 @@ gulp.task("rebuild-all-duality", function () {
 
 // Builds duality
 gulp.task("build-duality", function () {
-    console.log("=====================================================");
+    if (globals.isFirstBuild) {
+        console.log("== First build; complete build will be performed ==");
+        globals.isFirstBuild = false;
+    }
+    
     if (settings.forceSerializedTasks)
         console.log("== Forcing serialized tasks ==");
-        
-    // Do an incremental build
-    // See comment before definition of settings.incrementalBuild for reason why this is commented out.
-    // settings.incrementalBuild = true;
+
+    // Do an incremental build at the project-level
+    settings.incrementalBuild = true;
 
     return buildDuality();
 });
 
-// Q: Why isn't tsc problem matcher working?  SEE: https://github.com/Microsoft/vscode/issues/13265
-// A: Because pattern matchers don't (yet) apply to output window, which only works with aboslute paths
-// SEE: https://github.com/Microsoft/vscode/issues/6217
-
 // Watches; also enables incremental builds.  You can just run this task and let it handle things
 // It does do a build-on-save which isn't exactly what I wanted to enable here (I'd prefer in this task to just track
-// dirty files and pass that list on to build-duality when a build task is started).  Should work as-is though
+// dirty files and pass that list on to build-duality when a build task is started).  Should work as-is though.
+// NOTE: settings.incrementalBuild enables project-level incremental builds; it skips entire projects if nothing in
+// them has changed
 gulp.task('watch', function () {
     // Since this is always running, limit output to errors
-    settings.verboseOutput = false;
+    // settings.verboseOutput = false;
+
+    // Because we don't maintain information about files between Task runs, our modifiedCache is always empty
+    // at the start, and thus we'll rebuild everything.  Track that it's the first build so that we can output it.
+    globals.isFirstBuild = true;
 
     // Watch for changes to ts files; when they occur, run the 'build-duality' task
     gulp.watch([
