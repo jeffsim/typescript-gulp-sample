@@ -19,6 +19,7 @@ var concat = require("gulp-concat"),
 // TODO: Don't copy built-in-plugin d.ts files in dist/typings
 // TODO: Update joinPath to take varargs.  Use it on line 245 & others
 // TODO: I suspect I can use through2.obj() in places where I just need a stream to pass back?
+// TODO: Make gulpfile watch itself.  https://codepen.io/ScavaJripter/post/how-to-watch-the-same-gulpfile-js-with-gulp
 
 // Q: Why isn't tsc problem matcher working?
 // A: Because pattern matchers don't (yet) apply to output window, which only works with absolute paths
@@ -761,7 +762,6 @@ function buildDuality() {
 
 // Does a complete rebuild
 gulp.task("rebuild-all-duality", function () {
-    console.log("");
     if (settings.forceSerializedTasks)
         console.log("== Forcing serialized tasks ==");
 

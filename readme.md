@@ -2,9 +2,9 @@
 
 # Table of Contents
 * [What is this?](#what-is-this)
-* [How to run it?](#how-to-run-it)
-* [Target environment: VS Code](#target-environment-vs-code)
-* [Using gulp and tasks](#using-gulp-and-tasks)
+* [VS Code](#vs-code)
+* [How to test the build environment](#how-to-test-the-build-environment)
+* [From the top: Using gulp and tasks](#from-the-top-using-gulp-and-tasks)
 * [The Project System](#the-project-system)
 * [Folders](#folders)
 * [Managing and moving files between projects at build time](#managing-and-moving-files-between-projects-at-build-time)
@@ -22,54 +22,147 @@
 * [Lessons learned/what if I see "error: X"](#lessons-learnedwhat-if-i-see-error-x)
 
 # What is this?
+This is my evolving effort to create a gulp-based dev environment for my Typescript projects which supports:
+- debug and minified builds
+- Sourcemap-based debugging
+- File- and Project-level incremental compilation
+- Bundling library output into a single js file using namespaces (not external modules)
+- Proper ordering of files (e.g. base classes before derived classes) in the build
+- Ambient typings working throughout while editing
+- Generation of d.ts files for not-built-in plugins and an all-up bundled d.ts for everthing bundled
+- How to get one gulpfile to work with multiple projects and multiple tsconfigs
+- Including 3PP library and d.ts (jquery)
+- Wallaby-based test runner
 
-- My evolving effort to create a reasonable build system for my own projects which supports:
-  - Typescript
-  - Gulp-based builds
-  - Bundling library output into a single js file using namespaces (not external modules)
-  - Proper ordering of files (e.g. baseclasses before derived classes) in the build
-  - Ambient typings working throughout while editing
-  - Generation of d.ts files for not-built-in plugins and an all-up bundled d.ts for everthing bundled
-  - File- and Project-level incremental compilation
-  - How to get one gulpfile to work with multiple projects and multiple tsconfigs
-  - debug and minified builds
-  - Sourcemap-based debugging
-  - Including 3PP library and d.ts (jquery)
-  - Wallaby-based test runner
-- The overall project; Duality
-  - Editor + Plugins + Tests + Samples
-- The project in this repo is NOT intended to be 'real' - it contains a few source files and projects to test and prove out the build system.  I'll eventually link to the real project that this will support (called 'duality') once that's in shareable shape.
-- The main thing I&#39;m trying to properly support with this is Typescript, because (1) I really like it, and (2) it can be a PITA to get a full dev environment set up for a complex project with proper ambient typings, no &quot;duplicate symbol&quot; warnings, etc.
-- This started simple, but has added more functionality and more abstraction over time.
-- This document: me documenting how I tackled each aspect.  There are likely better ways to do parts of this; if so, I&#39;d love to know about it!
+The information in this document will likely be sparse and, admittedly, at times assumed; it's what I've deduced after
+banging my head against this particular wall for a while...  Caveat emptor!
 
-Sneak peak of the project that I'm working on which spawned this project:
+### The project which spawned this one: Duality
+
+My other (*very* early) project, called 'Duality', is an attempt to bring a Unity-like
+experience to non-Unity (and even non-game) web apps.  As that Typescript project has gotten bigger and bigger, it was getting unwieldy
+to manage; builds taking upwards of 30 seconds, ambient typings not always working, debugging occasionally not working, etc.
+So I spawned off this separate effort to create an optimal (for my purposes) environment.
+
+#### Why this project is structured as it is:
+The Duality environment consists of the following components:
+- Editor
+  - This is the 'meat' of the project and includes everything needed to get a basic Unity-like experience in a webgl app
+  - Apps can include it by including a single bundled "duality.js" file
+- Plugins
+  - Additional functionality can be included via plugins; e.g. I have a plugin that exposes inspectors for editor
+objects, allowing debugging of the editor itself.  This is not something most apps would need, so it's available via a
+separate plugin.
+  - Plugins can be either built-in (included in the duality.js bundle), or included separately into an app
+- Tests
+  - Wallaby-based tests that vet out Editor functionality.
+- Samples
+  - Sample standalone apps that include and demonstrate editor functionality.
+The interesting thing about this structure is that it forces a number of different build types; some components are bundled
+while others arent; some are minimized and some aren't; some have d.ts files generated and some don't; etc.
+The '[Project System](#the-project-system)' section in this document covers some of these differences.
+
+Side note: The project in this repo is not intended to be 'real' - it contains a few source files and projects to test and prove out the build system.  I'll eventually link to the real project that this will support (called 'duality') once that's in shareable shape.
+
+Sneak peak of the Duality project (Duality is the stuff around the cool water demo, which is itself found [here](http://madebyevan.com/webgl-water):
+
 <a href="http://getduality.com/websiteImages/dualitypreview.png"><img src="http://getduality.com/websiteImages/dualitypreview.png" alt="Duality Preview" width="400"/></a>
 
-# How to run it
+# VS Code
+This project is currently built for VS Code only, because that's the environment that I use.
 
-  - npm install (in the project root folder)
-  - load the project in vs code and drop some breakpoints in to ensure that source maps are working as you expect, build, and F5.
-  - To see the test runner work, just load tests.html.
+I assume most of this mostly works in other quasi-IDEs like Atom, but I haven't tried it yet.  I'll get to it eventually; but if that (or something else) is your environment of choice and you get it to work, then I'd love to add that in!
 
-# Target environment: VS Code
+Note: I'm likely going to conflate the precise roles of Typescript and VS Code in this document; the lines between them blur at times for me (e.g. around tasks and tsconfig) and I haven't tried to suss out details.  I'll fix any incorrect assumptions over time.
 
-  - Because I&#39;m ex-Microsoft, and anything with &quot;VS&quot; in it gets my love.  Besides which, it&#39;s good!
-  - I assume most of this works fairly well in other quasi-IDEs like Atom, but I haven&#39;t tried it yet.  I&#39;ll get to it eventually; but if that (or something else) is your environment of choice and you get it to work, then I&#39;d love to add that in!
-  - Note: I&#39;m likely going to conflate the precise roles of Typescript and VS Code in this document; the lines between them blur at times for me (e.g. around tasks and tsconfig).  I&#39;ll fix any incorrect assumptions over time.
+# How to test the build environment
+1. Get VS Code set up with the chrome debugging extension.  Setup a local web server (I personally prefer [Fenix](http://fenixwebserver.com/))
+2. npm install to get dependencies
+3. Drop some breakpoints in to ensure that source maps are working as you expect, build, and F5.
+4. To see the test runner work, just load tests.html after building.
 
-# Using gulp and tasks
+# From the top: Using gulp, gulpfile.js, and tasks
+While using the built-in tsc build system works well for relatively simple projects, I prefer gulp for anything more complex.
+I assume grunt works just as well, but gulp is the one I've opted for here.
+#### gulp and tasks.json
+To build with gulp, you need a tasks.json file which tells VS Code what to do when you signal 'build'
+There plenty of resources out there on how to get it set up, but here's a snippet from this project's tasks.json file.
+You can see the command ('gulp') as well as the task ('build-duality') which will get run.
 
-  - Gulpfile.js and vs code tasks
-  - Why not gulpfile.ts?  you can actually do this (links), and the appeal of proper classes here is hard to say no to; but the extra compile step makes me itchy, and I want to wait until everything else is rock-stable before introducing that.
-  - Why one file? You can break it apart (links), but I haven&#39;t tackled that yet.
+```
+{
+    "version": "0.1.0",
+    "isShellCommand": true,
+    "command": "gulp",
+    "tasks": [
+        {
+            "taskName": "build-duality",
+            "args": [],
+            "isBuildCommand": true,
+            "isWatching": false,
+            "problemMatcher": [
+                "$tsc"
+            ]
+    }]
+}
+```
+* Resource: [Gulp documentation](https://github.com/gulpjs/gulp/blob/master/docs/README.md)
+
+#### Tasks
+
+When the build task is started, Gulp will automatically look for a file called 'gulpfile.js' in your root folder and run the 
+named task ('build-duality') from that file.
+
+Typically a Task is defined in the gulpfile something like this:
+
+```
+gulp.task("build-duality", function () {
+    // Do stuff...
+    console.log("test");
+});
+```
+
+The flow goes like this:
+1. User triggers a build in VS Code (e.g. presses shift+Command+B or shift+control+B)
+2. VS Code looks in tasks.json and finds the default task to run; in the above case, it's "build-duality"
+3. VS Code loads gulpfile.js and interprets it (note: could be cached for all I know), which registres tasks callbacks; in this case, for "build-duality"
+4. VS Code calls the function associated with the "build-duality" string in the code immediately above
+5. 'test' gets written to the console.
+
+You can also run specific tasks other than the default with shift+command+p, run task, <task name>
+
+You can run a sequence of tasks from within the gulpfile itself with the well-named plugin, "run-sequence".  It looks something like this:
+
+```
+runSequence("clean", "build", "minify");
+```
+
+That said, see the section [Tasks, runSeries and runParallel](#tasks-runseries-and-runparallel) for why I pretty quickly jump out of the tasks-based world here and into functions.
+
+* Resource: [Tasks overview on VS Code site](https://code.visualstudio.com/Docs/editor/tasks).
+* Resource: [Tasks schema on VS Code site](https://code.visualstudio.com/docs/editor/tasks_appendix)
+* Resource: [Why you shouldn't even ask 'can I pass parameters to a task using run-sequence?'](https://github.com/OverZealous/run-sequence/issues/68)
+
+#### Gulpfile.ts
+
+TODO: Why not gulpfile.ts?  you can actually do this, and the appeal of proper classes here is hard to say no to; but the extra compile step makes me itchy, and I want to wait until everything else is rock-stable before introducing that.
+* Resource: [gulpfile.ts npm plugin](https://www.npmjs.com/package/gulpfile.ts)
+* Resource: [creating a gulpfile using typescript](https://medium.com/@pleerock/create-a-gulpfile-and-write-gulp-tasks-using-typescript-f08edebcac57)
+
+#### Just one 800 line file?  Really?  No desire to, say, split that up into rational components?
+
+TODO: You can break gulpfile.js apart, but I haven't tackled that yet.
+* Resource: [Splitting a gulpfile into multiple files](http://macr.ae/article/splitting-gulpfile-multiple-files.html)
 
 # The Project System
+**TODO: This section**
 
 ### ProjectGroups and Projects
+**TODO: This section**
 - My approach to making code more contained and manageable.
 
 ### ProjectGroups
+**TODO: This section**
 - Collection of Projects
 - One gulpfile compiles all of them
 - (todo: fields)
@@ -90,6 +183,7 @@ editor, plugins, tests, and samples are all examples of ProjectGroups.  Here's t
 NOTE: each ProjectGroup can also define its own additional properties; e.g. the editor ProjectGroup includes version
 
 ### Projects
+**TODO: This section**
 - Two types of projects: apps and libs
 - This build env handles two different types of projects; applications and libraries
 
@@ -101,15 +195,17 @@ NOTE: each ProjectGroup can also define its own additional properties; e.g. the 
 | *files* | string[] | List of files to compile; relative to project path.  If unspecified, defaults to '["**/*.ts"]', which == all TS files in the project folder.
 
 #### Library Projects
-  - Meaningless by itself; intended to be used by actual apps. jquery and angular are examples of what I mean by 'library'
+**TODO: This section**
+  - Intended to be used by actual apps.
   - The library's source files are transpiled into a single bundled output file dropped into /dist
   - Both debug and minimized files output (*-debug.js, *-min.js)
   - Generates definition (*.ts) files and copies them into /dist/typings
   - Examples:
-    - Editor project: generates editor-debug.js, editor-min.js, and editor.d.ts
-    - Plugins project: for each plugin, generates [pluginname]-debug.js, [pluginname]-min.js, and [pluginname].d.ts
+    - Editor project: Generates editor-debug.js, editor-min.js, and editor.d.ts
+    - Plugins project: For each plugin, generates [pluginname]-debug.js, [pluginname]-min.js, and [pluginname].d.ts
 
 #### Applications Projects
+**TODO: This section**
   - Standalone app that uses the libraries
   - Applications' source files are transpiled and not bundled; placed next to source files
     - Intent is to mirror what apps that use Duality will normally do.
@@ -118,6 +214,7 @@ NOTE: each ProjectGroup can also define its own additional properties; e.g. the 
   - Examples: Samples projects, Tests projects
 
 # Folders
+**TODO: This section**
 
   - /bld
     - This is where built files for libraries are put.  Built files for apps end up alongside the apps' sourcecode
@@ -138,28 +235,30 @@ NOTE: each ProjectGroup can also define its own additional properties; e.g. the 
     - Contains a single tests.html file that can be directly loaded (but your webroot needs to be at the root of this repo's files)
 
 # Managing and moving files between projects at build time
+**TODO: This section**
 
   - Building – files can be built into /dist or into source folder
   - Files can be precopied at projectgroup or project level
   - Files can be included without being copied (commonfiles).  Avoids.. duplication?
 
 # Bundling
+**TODO: This section**
 
   - Options:
-    - Typescript&#39;s --out option.  Todo: why did I lean away from this one?
-    - external modules and requires: didn&#39;t do this as I want a single bundled file and single network call.  I assume there&#39;s a magical way to start with this approach and have the build process do the bundle (an amorphous blob of phrases like webpack (todo: and others) comes to mind), but I didn&#39;t track that one down.  Besides: coming out of .net, it&#39;s hard to say no to namespaces.
+    - Typescript's --out option.  Todo: why did I lean away from this one?
+    - external modules and requires: didn't do this as I want a single bundled file and single network call.  I assume there's a magical way to start with this approach and have the build process do the bundle (an amorphous blob of phrases like webpack (todo: and others) comes to mind), but I didn't track that one down.  Besides: coming out of .net, it's hard to say no to namespaces.
     - internal modules (namespaces) and /// references.
   - Builds one bundle with main project (editor) and all built-in plugins
-  - Every library project with &#39;includeInBundle:true&#39; is included in the bundle.
+  - Every library project with 'includeInBundle:true' is included in the bundle.
   - Editor version
   - Files output; duality-0.0.1-debug.js, duality-0.0.1-min.js, duality-0.0.1.d.ts.
   - See section on ordering files below.
 
 # Debug and minified builds
+**TODO: This section**
   
-  - TODO
-
 # Incremental Builds
+**TODO: This section**
 
   - What not to do: gulp-changed-in-place
     - This is what I naively started with.
@@ -167,11 +266,11 @@ NOTE: each ProjectGroup can also define its own additional properties; e.g. the 
     - Reason: typescript compiler needs all .ts files, not just changed ones
   - What to do: two things:
     - Using gulp.watch for file-level modification checking
-      - How it works: always-running task keeps state between builds, allowing it to maintain some info between runs.  What info? It&#39;s magic!
-      - What you get: file-level checks.  ~15% in this sample, likely more in &#39;real&#39; projects (the claim is 50% reduction in compile time)
+      - How it works: always-running task keeps state between builds, allowing it to maintain some info between runs.  What info? It's magic!
+      - What you get: file-level checks.  ~15% perf improvement in this sample, likely more in 'real' projects (the claim is 50% reduction in compile time)
     - Using project-level modification checking
       - Only applies if your project is like this one and has multiple contained projects; dependencies between them okay
-      - If it does apply, then you can see _massive_ compilation improvements here.  My duality project has about 200 .ts files in it, and being able to iteratively develop a sample without having to recompile the editor, plugins, and tests everytime is ridiculously nice.
+      - If it does apply, then you can see _massive_ compilation improvements here.  My duality project has about 200 .ts files in it, and being able to iteratively develop a sample without having to recompile the editor, plugins, and tests everytime is ridiculously nice (e.g. cuts a 30 second build time down to < 1 second!)
       - How it works
         - Maintains project-level modifiedFilesCache and tracks last modified times
           - Note: need to change gulp.src.dest (fileCopy) to preserve modified time.  Gulp-preserve-time to the rescue!
@@ -221,14 +320,18 @@ Take a look at the output:
 
 *(todo: include bundle.js)*
 
+\<Assumption!>
+
 The problem is that the derived class (Animal) is getting defined before the base class (Creature)
 has beeen defined, and when it tries to complete the definition of Animal by calling super on the (at-the-time-nonexistent) Creature
 class, it can't. 
 
-*TODO: Double-check that the above is exactly what's happening.  I believe it to be the case, but something keeps making*
-*me wonder why they couldn't make the completion of the definition more late-binding, after the file has been loaded.*
+\</Assumption!>
 
-So: when compiling Typescript, you need to order your classes so that base classes come first.  You have a couple of
+*TODO: Double-check that the above is exactly what's happening.  I believe it to be the case, but something keeps making*
+*me wonder why they couldn't make the completion of the definition more late-binding, after the classes have been declared but not defined.*
+
+So, either way: when compiling Typescript, you need to order your classes so that base classes come first.  You have a couple of
 options here:
 
 #### Option 1: Specify the order in build.
@@ -244,7 +347,7 @@ gulp.src(["Creature.ts", "Animal.ts])
 ```
 This works, but in an eye-roll-y sort of way; and in a way that only becomes uglier the more files (and dependencies)
 that you add.  It also moves management of the dependency out of the dependent file (the derived class) and into the
-build system, which just sounds wonky.
+build system, which just sounds wonky when you say it out loud.
 
 #### Option 2: Use external modules and use 'requires'
 
@@ -280,6 +383,7 @@ might not catch the issue until much later when some other build change changes 
 that dependency isn't present...
 
 # Typings
+**TODO: This section**
 
   - Ambient typings
     - Tsconfig.json folder-level
@@ -289,9 +393,10 @@ that dependency isn't present...
       - todo: recap why this didn't work.
     - What to do
   - Using 3PP libraries &amp; typings
-    - Don&#39;t have details on this yet.  I&#39;ve stumbled my way into adding jquery to the project as a test and it works; but the recent (?) move to &#39;typings&#39; has left a lot of dated info out there on how best to do this.  I need to dig more into this.
+    - Don't have details on this yet.  I've stumbled my way into adding jquery to the project as a test and it works; but the recent (?) move to 'typings' has left a lot of dated info out there on how best to do this.  I need to dig more into this.
 
 # Tasks, runSeries and runParallel
+**TODO: This section**
 
   - &quot;I want to pass parameters to my task rather than have do-thing-project1, do-thing-project2, do-thing-project3&quot;
     - Yeah, I did too.  Short version: no.  &lt;link&gt;
@@ -300,14 +405,15 @@ that dependency isn't present...
   - Running a collection of tasks in series; e.g.: build, then minify
     - Approaches: stream-series
     - Why write my own?  To learn!
-    - &lt;what&#39;s interesting about it?&gt;
-    - &lt;what probably doesn&#39;t work?&gt;
+    - &lt;what's interesting about it?&gt;
+    - &lt;what probably doesn't work?&gt;
   - Running a collection of tasks in parallel; e.g. build samples 1, 2, and 3
     - Approaches: eventStream.merge.  works perfectly fine.
     - Why write my own?  To allow me to at-run-time opt to force serialization of all tasks
   - Promises and Streams
 
 # tsconfig.json
+**TODO: This section**
 
   - Different approaches; one top level, one per projectgroup (eg the tests projectgroup does this),
    one per project (e.g. the samples projectgroup does this).
@@ -318,10 +424,34 @@ that dependency isn't present...
   - See note in ambient typings section about how tsconfig.json impacts them.
 
 # taskTracker
-  
-  - TODO
+Simple way to output task start and end times using gulp's formatting.  Useful since I jump
+out of tasks and into functions pretty quickly in this project because parameters are nice (DRY, you know?)
+
+Using it is easy: Include the following before a task
+
+```
+    var taskTracker = new TaskTracker("precopyRequiredFiles");
+```
+
+and this after it:
+
+```
+taskTracker.end()
+```
+
+I typically call taskTracker.end() in a gulp call using the 'end' stream event, like this:
+
+```
+var taskTracker = new TaskTracker("precopyRequiredFiles");
+return gulp.src(filesToCompile)
+           .pipe(ts())
+           .pipe(gulp.dest(".")
+           .on("end", () => taskTracker.end());
+
+```
 
 # Sourcemap-based debugging
+**TODO: This section**
 
   - Okay, so after all of the above, we finally get to the whole point of this thing: debugging
   - How sourcemaps work.
@@ -330,17 +460,19 @@ that dependency isn't present...
     - The bane of the grey debugging circle
     - How to debug sourcemaps
     - The house of cards that is getting sourcemaps set up with multiple folders.
-      - Combo of: Tsconfig&#39;s outfile (&quot;willgetrenamedanways.js&quot;)
+      - Combo of: Tsconfig's outfile (&quot;willgetrenamedanways.js&quot;)
         - Sourcemaps not found without this.  Need to remember why…
-      - Gulp.src&#39;s &quot;base&quot; field
+      - Gulp.src's &quot;base&quot; field
       - Proper basing of files
       - And the coup de grace: removing the front slash from minified builds.
 
 # Debugging the gulpfile
+**TODO: This section**
 
   - Gulp task to debug gulpfile.js
 
 # Running tests
+**TODO: This section**
 
   - Wallaby
   - Tests.html
@@ -348,8 +480,9 @@ that dependency isn't present...
 
 # Lessons learned/what if I see &quot;error: X&quot;
 
+**TODO: This section**
   - Note: all are as of time of writing.  Thx to internet reality, likely out of date by the time you read this.  Hello future reader!
-  - problemMatchers don&#39;t work with output window
+  - problemMatchers don't work with output window
   - debugging with chrome
     - &quot;--disable-session-crashed-bubble&quot;,
     - &quot;--disable-infobars&quot;
@@ -358,8 +491,8 @@ that dependency isn't present...
   - Gulp.src &amp; base
   - Faster compiles
     - Tcsonfig: skipLibCheck
-  - Why not just use tsconfig&#39;s &quot;declaration:true&quot;?
-    - Doesn&#39;t work with allowJS: true.  I want that for some reason…
+  - Why not just use tsconfig's &quot;declaration:true&quot;?
+    - Doesn't work with allowJS: true.  I want that for some reason…
   - Filtering to changed files
     - Implemented my own &quot;gulp-changed-in-place&quot; which uses timestamps instead of hashes for speed.  Can be found in the commented-out filterToChangedFiles function.
   - Outputing files in stream
