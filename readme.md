@@ -75,7 +75,7 @@ Side note: The project in this repo is not intended to be 'real' - it contains a
 
 Sneak peak of the Duality project (Duality is the stuff around the cool water demo, which is itself found [here](http://madebyevan.com/webgl-water)):
 
-<a href="http://getduality.com/websiteImages/dualitypreview.png"><img src="http://getduality.com/websiteImages/dualitypreview.png" alt="Duality Preview" width="400"/></a>
+<div style="text-align:center"><a href="http://getduality.com/websiteImages/dualitypreview.png"><img src="http://getduality.com/websiteImages/dualitypreview.png" alt="Duality Preview" width="400"/></a></div>
 
 # VS Code
 This project is currently built for VS Code only, because that's the environment that I use.
@@ -89,11 +89,11 @@ Note: I'm likely going to conflate the precise roles of Typescript and VS Code i
 2. Setup a local web server (I personally prefer [Fenix](http://fenixwebserver.com/))
     - Note: the port that launch.json uses is 1024; either use that one in Fenix when setting up the server, or pick a different number and update launch.json with that value. e.g.:
 <br/>
-<center><img src="http://getduality.com/websiteImages/fenixsetup.png" alt="Duality Preview" width="300"/></a></center>
+<div style="text-align:center"><img src="http://getduality.com/websiteImages/fenixsetup.png" alt="Duality Preview" width="300"/></a></div>
   
 3. npm install to get dependencies
 <br/>
-<center><img src="http://getduality.com/websiteImages/npminstall.png" alt="Installing via NPM"/></a></center>
+<div style="text-align:center"><img src="http://getduality.com/websiteImages/npminstall.png" alt="Installing via NPM"/></a></div>
 
 4. Drop some breakpoints in to ensure that source maps are working as you expect, build, and F5.
 5. To see the test runner work, just load tests.html after building.
@@ -335,20 +335,51 @@ commonFiles: ["tests/typings/*.d.ts"],
     * It's in the todo list at top of this file.
 
 # Bundling
-***TODO: This section***
+This build environment creates a bundle which includes all projects identified as libraries with includeInBundle = true.  This bundle
+is the penultimate output of the whole process, containing the editor and all built-in plugins.  It is sufficient by itself, although
+the build environment also outputs non-built-in libraries for optional inclusion by apps.
 
-  - Options:
-    - Typescript's --out option.  Todo: why did I lean away from this one?
-    - external modules and requires: didn't do this as I want a single bundled file and single network call. 
-      I assume there's a magical way to start with this approach and have the build process do the bundle
-      (an amorphous blob of phrases like webpack (todo: and others) comes to mind), but I didn't track that one down.
-      Besides: coming out of .net, it's hard to say no to namespaces.
-    - internal modules (namespaces) and /// references.
-  - Builds one bundle with main project (editor) and all built-in plugins
-  - Every library project with 'includeInBundle:true' is included in the bundle.
-  - Editor version
-  - Files output; duality-0.0.1-debug.js, duality-0.0.1-min.js, duality-0.0.1.d.ts.
-  - See section on ordering files below.
+The final bundle is placed in /dist.
+
+## The bundle object
+This provides details about the bundled file that will be generated.  Here's what it looks like:
+
+```
+// Bundle definition
+var bundle = {
+    baseName: "duality",
+    version: "0.0.1",
+    modifiedBundleCache: {}
+};
+```
+
+bundle.baseName and bundle.version are used to generate the final output filenames; e.g. with the above, we will get:
+
+* duality-0.0.1-debug.js
+* duality-0.0.1-min.js
+* duality-0.0.1-d.ts
+
+Ordering of files within the bundle is critical, and covered [here](#ordering-files-for-typescript-build).
+
+## Internal Namespaces vs External modules
+***TODO: The following is my unvetted assumption on how things work based on what I've seen***
+
+When breaking your project apart into multiple files, you have two approaches to bundling and referencing functionality within other files:
+1. Use External modules ('modules') and 'import'
+    * I didn't do this as I want a single bundled file and single network call. I assume there's a magical way to start with this approach and have the build process do the bundle
+  (an amorphous blob of phrases like 'webpack', 'browserify', and others comes to mind), but I didn't track that one down.
+  Besides: coming out of .net, it's hard to say no to namespaces.  Yes, I'm weak.
+
+2. Use Namespaces (nee 'internal modules') and '/// references'
+    * This is the model I adopted here, for reasons.
+    * See the section below on [Ordering files for typescript build](#ordering-files-for-typescript-build) for details.
+    * I believe that this is the point where I had to add 'outFile:' to editor's tsconfig.json file.
+
+Reference: [Names and Modules on Typescript site](https://www.typescriptlang.org/docs/handbook/namespaces-and-modules.html)
+
+### Other notes
+
+***TODO: Typescript's --out option.  Didn't work for me; remember why.***
 
 # Debug and minified builds
 ***TODO: This section***
@@ -608,8 +639,8 @@ Note: all are as of time of writing.  Thx to internet reality, likely out of dat
 #### Chrome's massively annoying "Restore pages?" dialog
 Does Chrome complain every time you stop and restart debugging with a dialog about not shutting down correctly?
 <br/>
-<center><img src="http://getduality.com/websiteImages/hateThisDialog.png" alt="God I hate this dialog"/></a><br/>
-<i>God I hate this dialog</i></center>
+<div style="text-align:center"><img src="http://getduality.com/websiteImages/hateThisDialog.png" alt="God I hate this dialog"/></a><br/>
+<i>God I hate this dialog</i></center></div>
 
 To fix this, Add this to your build configuration in launch.json:
 ```
