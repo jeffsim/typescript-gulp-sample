@@ -1,6 +1,25 @@
-
-
 **This readme is very much a work in progress!**
+
+# Table of Contents
+* [What is this?](#what-is-this)
+* [How to run it?](#how-to-run-it)
+* [Target environment: VS Code](#target-environment-vs-code)
+* [Using gulp and tasks](#using-gulp-and-tasks)
+* [The Project System](#the-project-system)
+* [Folders](#folders)
+* [Managing and moving files between projects at build time](#managing-and-moving-files-between-projects-at-build-time)
+* [Bundling](#bundling)
+* [Debug and minified builds](#debug-and-minified-builds)
+* [Incremental Builds](#incremental-builds)
+* [Ordering files for Typescript build](#ordering-files-for-typescript-build)
+* [Typings](#typings)
+* [Tasks, runSeries and runParallel](#tasks-runseries-and-runparallel)
+* [tsconfig.json](#tsconfigjson)
+* [taskTracker](#tasktracker)
+* [Sourcemap-based debugging](#sourcemap-based-debugging)
+* [Debugging the gulpfile](#debugging-the-gulpfile)
+* [Running tests](#running-tests)
+* [Lessons learned/what if I see "error: X"](#lessons-learnedwhat-if-i-see-error-x)
 
 # What is this?
 
@@ -24,13 +43,13 @@
 - This started simple, but has added more functionality and more abstraction over time.
 - This document: me documenting how I tackled each aspect.  There are likely better ways to do parts of this; if so, I&#39;d love to know about it!
 
-# To run it
+# How to run it
 
   - npm install (in the project root folder)
   - load the project in vs code and drop some breakpoints in to ensure that source maps are working as you expect, build, and F5.
   - To see the test runner work, just load tests.html.
 
-# VS Code
+# Target environment: VS Code
 
   - Because I&#39;m ex-Microsoft, and anything with &quot;VS&quot; in it gets my love.  Besides which, it&#39;s good!
   - I assume most of this works fairly well in other quasi-IDEs like Atom, but I haven&#39;t tried it yet.  I&#39;ll get to it eventually; but if that (or something else) is your environment of choice and you get it to work, then I&#39;d love to add that in!
@@ -42,7 +61,7 @@
   - Why not gulpfile.ts?  you can actually do this (links), and the appeal of proper classes here is hard to say no to; but the extra compile step makes me itchy, and I want to wait until everything else is rock-stable before introducing that.
   - Why one file? You can break it apart (links), but I haven&#39;t tackled that yet.
 
-# Project system
+# The Project system
 
   - ProjectGroups and Projects
     - My approach to making code more contained and manageable.
@@ -68,6 +87,7 @@
       -  *path*: string                Path of the Project relative to root
       -  *files*: string[]             List of files to compile; relative to project path.  If unspecified, defaults to '["**/*.ts"]', which == all TS files in the project folder.
     - NOTE: each ProjectGroup can also define its own additional properties; e.g. the editor ProjectGroup includes version
+
 # Folders
 
   - /bld
@@ -88,7 +108,7 @@
     - Contains a collection of tests that demonstrate how to use wallaby to verify functionality of Duality and the plugins.
     - Contains a single tests.html file that can be directly loaded (but your webroot needs to be at the root of this repo's files)
 
-# Managing and moving files between projects at build time.
+# Managing and moving files between projects at build time
 
   - Building – files can be built into /dist or into source folder
   - Files can be precopied at projectgroup or project level

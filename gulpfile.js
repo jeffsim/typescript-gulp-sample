@@ -16,6 +16,9 @@ var concat = require("gulp-concat"),
     tsc = require("gulp-typescript"),
     uglify = require("gulp-uglify");
 
+// TODO: Don't copy built-in-plugin d.ts files in dist/typings
+// TODO: Update joinPath to take varargs.  Use it on line 245 & others
+// TODO: I suspect I can use through2.obj() in places where I just need a stream to pass back?
 
 // Q: Why isn't tsc problem matcher working?
 // A: Because pattern matchers don't (yet) apply to output window, which only works with absolute paths
@@ -40,8 +43,8 @@ var settings = {
     //  https://github.com/mgechev/angular-seed/wiki/Speeding-the-build-up
     incrementalBuild: true,
 
-    // By default, an incremental build would rebuild if *any* file changes, including d.ts files.  However, I *think*
-    // that you can get away with skipping recompilation of a project if only d.ts files have changed.  This field
+    // By default, an incremental build would rebuild if *any* file in a project changes, including d.ts files.
+    // However, I think that you can skip recompilation of a project if only d.ts files have changed.  This field
     // manages that.  If you're seeing weird incremental build behavior then try setting this to true, and let me know
     recompiledOnDTSChanges: false
 };
@@ -66,7 +69,6 @@ bundle.debugFilename = bundleNameVer + ".debug.js";
 bundle.minFilename = bundleNameVer + ".min.js";
 bundle.typingFilename = bundleNameVer + ".d.ts";
 
-// TODO: Don't copy built-in-plugin d.ts files in dist/typings
 
 // ====================================================================================================================
 // ======= PROJECTS ===================================================================================================
@@ -467,7 +469,7 @@ function runSeries(functions) {
             else if (result.then)
                 result.then(run);
             else
-                console.error("functions passed to runSeries must return a stream or promise");
+                throw new Error("functions passed to runSeries must return a stream or promise");
         }
     };
     run();
