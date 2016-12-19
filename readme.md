@@ -367,7 +367,7 @@ Ordering of files within the bundle is critical, and covered [here](#ordering-fi
 
 When breaking your project apart into multiple files, you have two approaches to bundling and referencing functionality within other files:
 
-1. Use External modules ('modules') and 'import'
+1. Use Modules (nee 'external modules') and 'import'
 
     * I didn't do this as I want a single bundled file and single network call. I assume there's a magical way to start with this approach and have the build process do the bundle
   (an amorphous blob of phrases like 'webpack', 'browserify', and others comes to mind), but I didn't track that one down.
