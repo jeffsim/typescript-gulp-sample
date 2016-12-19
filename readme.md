@@ -1,4 +1,4 @@
-**This readme is very much a work in progress!**
+# **This readme is very much a work in progress!**
 
 # Table of Contents
 * [What is this?](#what-is-this)
@@ -61,32 +61,53 @@
   - Why not gulpfile.ts?  you can actually do this (links), and the appeal of proper classes here is hard to say no to; but the extra compile step makes me itchy, and I want to wait until everything else is rock-stable before introducing that.
   - Why one file? You can break it apart (links), but I haven&#39;t tackled that yet.
 
-# The Project system
+# The Project System
 
-  - ProjectGroups and Projects
-    - My approach to making code more contained and manageable.
-    - One gulpfile compiles all of them
-  - Two types of projects: apps and libs
-    - This build env handles two different types of projects; applications and libraries
-    - Libs: minimized, transpiled files placed in dist, d.ts files gen'ed
-      - Examples: Editor, Plugins
-    - Apps: standalone, not minimized, transpiled files placed next to sources, no d.ts file gen'ed
-      - Examples: Samples, Tests
-  - Fields (include from comments)
-    - Editor, Plugins, Tests, and Samples are all defined using a common project format so that they can be handled generically.  All projects must have at minimum: name:string, path:string, and files:string[]
-    - editor, plugins, tests, and samples are all examples of ProjectGroups.  Here's the structure of ProjectGroup:
-      -  *name*:string                 Name of the project group; output in the task header during build process.
-      -  *isLibrary*:bool              If true, then output is a library; otherwise it's an app.  editor and plugins are libraries and tests and samples are apps.  See buildAppProject and buildLibProject for differences.
-      -  *tsConfigFile*:?string        The projects in a ProjectGroup can either (a) use a common tsconfig.json file, or (b) use a tsconfig file per project.  If (a), then set this to the location of that file.
-      -  *filesToPrecopyToAllProjects*?:fileCopy[]  Optional list of files that should be precopied to all projects within the ProjectGroup fileCopy structure = {src:string, dest: string}.  src is relative to root; dest is relative to each project's path.
-      -  *filesToPrecopyOnce*?:fileCopy[]  Optional list of files that should be precopied once before projects are compiled. Example usage: all tests reference the same duality*.d.ts, so copy it once into the tests/typings folder.  NOTE: paths are relative to root.
-      -  *commonFiles*?:string[]       Optional list of files that should be including in compilation of all projects in the ProjectGroup.  e.g. All Tests include tests/typings/*.d.ts.
-      -  *projects*:Project[]          List of Projects within the ProjectGroup.
-    - Structure of Project object:
-      -  *name*: string                Name of the Project
-      -  *path*: string                Path of the Project relative to root
-      -  *files*: string[]             List of files to compile; relative to project path.  If unspecified, defaults to '["**/*.ts"]', which == all TS files in the project folder.
-    - NOTE: each ProjectGroup can also define its own additional properties; e.g. the editor ProjectGroup includes version
+### ProjectGroups and Projects
+- My approach to making code more contained and manageable.
+
+### ProjectGroups
+- Collection of Projects
+- One gulpfile compiles all of them
+- (todo: fields)
+
+#### ProjectGroup Fields
+editor, plugins, tests, and samples are all examples of ProjectGroups.  Here's the structure of ProjectGroup:
+-  *name*:string                 Name of the project group; output in the task header during build process.
+-  *isLibrary*:bool              If true, then output is a library; otherwise it's an app.  editor and plugins are libraries and tests and samples are apps.  See buildAppProject and buildLibProject for differences.
+-  *tsConfigFile*:?string        The projects in a ProjectGroup can either (a) use a common tsconfig.json file, or (b) use a tsconfig file per project.  If (a), then set this to the location of that file.
+-  *filesToPrecopyToAllProjects*?:fileCopy[]  Optional list of files that should be precopied to all projects within the ProjectGroup fileCopy structure = {src:string, dest: string}.  src is relative to root; dest is relative to each project's path.
+-  *filesToPrecopyOnce*?:fileCopy[]  Optional list of files that should be precopied once before projects are compiled. Example usage: all tests reference the same duality*.d.ts, so copy it once into the tests/typings folder.  NOTE: paths are relative to root.
+-  *commonFiles*?:string[]       Optional list of files that should be including in compilation of all projects in the ProjectGroup.  e.g. All Tests include tests/typings/*.d.ts.
+-  *projects*:Project[]          List of Projects within the ProjectGroup.
+
+NOTE: each ProjectGroup can also define its own additional properties; e.g. the editor ProjectGroup includes version
+
+### Projects
+- Two types of projects: apps and libs
+- This build env handles two different types of projects; applications and libraries
+
+#### Structure of Project object
+-  *name*: string                Name of the Project
+-  *path*: string                Path of the Project relative to root
+-  *files*: string[]             List of files to compile; relative to project path.  If unspecified, defaults to '["**/*.ts"]', which == all TS files in the project folder.
+
+#### Library Projects
+  - Meaningless by itself; intended to be used by actual apps. jquery and angular are examples of what I mean by 'library'
+  - The library's source files are transpiled into a single bundled output file dropped into /dist
+  - Both debug and minimized files output (*-debug.js, *-min.js)
+  - Generates definition (*.ts) files and copies them into /dist/typings
+  - Examples:
+    - Editor project: generates editor-debug.js, editor-min.js, and editor.d.ts
+    - Plugins project: for each plugin, generates [pluginname]-debug.js, [pluginname]-min.js, and [pluginname].d.ts
+
+#### Applications Projects
+  - Standalone app that uses the libraries
+  - Applications' source files are transpiled and not bundled; placed next to source files
+    - Intent is to mirror what apps that use Duality will normally do.
+  - Only drops full debug .js files; no minimized ones (although I may revisit that; easy to add).
+  - No definition file is generated
+  - Examples: Samples projects, Tests projects
 
 # Folders
 
