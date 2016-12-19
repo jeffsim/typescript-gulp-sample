@@ -19,7 +19,7 @@
 * [Sourcemap-based debugging](#sourcemap-based-debugging)
 * [Debugging the gulpfile](#debugging-the-gulpfile)
 * [Running tests](#running-tests)
-* [Lessons learned/what if I see "error: X"](#lessons-learnedwhat-if-i-see-error-x)
+* [Lessons learned while doing this](#lessons-learned-while-doing-this)
 
 # What is this?
 This is my evolving effort to create a gulp-based dev environment for my Typescript projects which supports:
@@ -491,7 +491,7 @@ the 'node gulp.js' option from VS Code's debug dropdown, drop a breakpoint into 
     "env":{}
 }
 ```
-Note that you'll need to specify the default build task to run via the 'args' field
+Note that you'll can specify the build task to run via the 'args' field
 
 # Running tests
 ***TODO: This section***
@@ -500,7 +500,7 @@ Note that you'll need to specify the default build task to run via the 'args' fi
   - Tests.html
   - Typings; jasmine.  Shared copy of duality
 
-# Lessons learned
+# Lessons learned while doing this
 Things that I discovered or worked out as I was creating this project.
 
 Note: all are as of time of writing.  Thx to internet reality, likely out of date by the time you read this.  Hello future reader!
@@ -511,7 +511,9 @@ Note: all are as of time of writing.  Thx to internet reality, likely out of dat
 * SEE: [https://github.com/Microsoft/vscode/issues/6217](https://github.com/Microsoft/vscode/issues/6217)
 
 #### Chrome's massively annoying "unexpected crash" on debug restart
-Does Chrome complain every time you stop and restart debugging?  Add this to your build configuration in launch.json:
+Does Chrome complain every time you stop and restart debugging with a dialog about not shutting down correctly?  Add this to your build configuration in launch.json:
+
+<img src="http://getduality.com/websiteImages/hateThisDialog.png" alt="God I hate this dialog" /></a>
 
 ```
 "runtimeArgs": [
@@ -521,7 +523,7 @@ Does Chrome complain every time you stop and restart debugging?  Add this to you
 ```
 
 #### How do I call a function when gulp is done?
-Want to call a function when gulp finishes it's thing?  Add this to the end of the list of pipes:
+Want to call a function when gulp finishes it's thing?  Listen for 'end' and call your function; e.g. add this to the end of the list of pipes:
 
 ```
   .on("end", () => taskTracker.end());
@@ -529,7 +531,9 @@ Want to call a function when gulp finishes it's thing?  Add this to the end of t
 
 #### Want to compile faster?
 
-* add skipLibCheck to tsconfig.json (all of them)
+Add skipLibCheck:true to tsconfig.json (all of them).  This skips type cehcking of d.ts files.
+
+Reference: [Typescript 2.1 what's new](https://github.com/Microsoft/TypeScript/wiki/What's-new-in-TypeScript#new---skiplibcheck)
 
 #### Why not just use "declaration:true" in tsconfig.json to get d.ts files?
 
@@ -539,16 +543,16 @@ TODO: remember why.
 #### Want to filter to just changed files?
 See the section above on incremental builds for why you don't.  But if you *do*, then:
 
-Option 1: use [gulp-changed-in-place](https://github.com/alexgorbatchev/gulp-changed-in-place)
+Option 1: Use [gulp-changed-in-place](https://github.com/alexgorbatchev/gulp-changed-in-place)
 * Pro: Does what it says it does
 * Con: Uses expensive hashes instead of checking modification time.  On the plus side, that's probably a safer way to go in some edge cases.
 
-Option 2: check out the commented-out filterToChangedFiles function in this project's gulpfile.js.
+Option 2: Check out the commented-out filterToChangedFiles function in this project's gulpfile.js.
 * Pro: Uses faster timestamp comparison.
 * Con: Not tested against scenarios like deleted files.
 
 #### Want to see what files are in the current stream?
-See the commented out outputFilesInStream function in this project's gulpfile.js.  It can be used like this:
+See the commented-out outputFilesInStream function in this project's gulpfile.js.  It can be used like this:
 
 ```
 return gulp.src(filesToCompile)
