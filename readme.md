@@ -443,7 +443,7 @@ taskTracker.end()
 I typically call taskTracker.end() in a gulp call using the 'end' stream event, like this:
 
 ```
-var taskTracker = new TaskTracker("precopyRequiredFiles");
+var taskTracker = new TaskTracker("doing the compile thing");
 return gulp.src(filesToCompile)
            .pipe(ts())
            .pipe(gulp.dest(".")
@@ -451,15 +451,23 @@ return gulp.src(filesToCompile)
 
 ```
 
+which gives me output like this:
+
+```
+[07:48:47] Starting doing the compile thing
+[07:48:48] Finished doing the compile thing after 0.15 s
+```
+
 # Sourcemap-based debugging
 ***TODO: This section***
 
   - Okay, so after all of the above, we finally get to the whole point of this thing: debugging
   - How sourcemaps work.
-    - Sources, sourceRoot
+    - Sources, sourceRoot, and the joy of relative and absolute paths.
     - Annoyances with folders
     - The bane of the grey debugging circle
     - How to debug sourcemaps
+      - edit them directly!
     - The house of cards that is getting sourcemaps set up with multiple folders.
       - Combo of: Tsconfig's outfile (&quot;willgetrenamedanways.js&quot;)
         - Sourcemaps not found without this.  Need to remember why…
@@ -468,9 +476,22 @@ return gulp.src(filesToCompile)
       - And the coup de grace: removing the front slash from minified builds.
 
 # Debugging the gulpfile
-***TODO: This section***
-
-  - Gulp task to debug gulpfile.js
+Here's how to debug the build environment itself; add the following to launch.json's configurations group, and then select
+the 'node gulp.js' option from VS Code's debug dropdown, drop a breakpoint into gulpfile.js, and build.
+```
+{
+    "name":"node gulp.js ...",
+    "request": "launch",
+    "type":"node",
+    "program":"${workspaceRoot}/node_modules/gulp/bin/gulp.js",
+    "stopOnEntry":false,
+    "args":["build-duality"],
+    "cwd":"${workspaceRoot}",
+    "runtimeExecutable": null,
+    "env":{}
+}
+```
+Note that you'll need to specify the default build task to run via the 'args' field
 
 # Running tests
 ***TODO: This section***
@@ -479,22 +500,59 @@ return gulp.src(filesToCompile)
   - Tests.html
   - Typings; jasmine.  Shared copy of duality
 
-# Lessons learned/what if I see &quot;error: X&quot;
+# Lessons learned
+Things that I discovered or worked out as I was creating this project.
 
-***TODO: This section***
-  - Note: all are as of time of writing.  Thx to internet reality, likely out of date by the time you read this.  Hello future reader!
-  - problemMatchers don't work with output window
-  - debugging with chrome
-    - &quot;--disable-session-crashed-bubble&quot;,
-    - &quot;--disable-infobars&quot;
-  - How to know if a stream ended?
-    - .on(&quot;end&quot;, () =&gt; taskTracker.end());
-  - Gulp.src &amp; base
-  - Faster compiles
-    - Tcsonfig: skipLibCheck
-  - Why not just use tsconfig's &quot;declaration:true&quot;?
-    - Doesn't work with allowJS: true.  I want that for some reason…
-  - Filtering to changed files
-    - Implemented my own &quot;gulp-changed-in-place&quot; which uses timestamps instead of hashes for speed.  Can be found in the commented-out filterToChangedFiles function.
-  - Outputing files in stream
-    - See outputFilesInStream
+Note: all are as of time of writing.  Thx to internet reality, likely out of date by the time you read this.  Hello future reader!
+
+#### problemMatchers don't work with output window
+* Q: Why isn't tsc problem matcher working?
+* A: Because pattern matchers don't (yet) apply to output window, which only works with absolute paths
+* SEE: [https://github.com/Microsoft/vscode/issues/6217](https://github.com/Microsoft/vscode/issues/6217)
+
+#### Chrome's massively annoying "unexpected crash" on debug restart
+Does Chrome complain every time you stop and restart debugging?  Add this to your build configuration in launch.json:
+
+```
+"runtimeArgs": [
+    "--disable-session-crashed-bubble",
+    "--disable-infobars"
+]
+```
+
+#### How do I call a function when gulp is done?
+Want to call a function when gulp finishes it's thing?  Add this to the end of the list of pipes:
+
+```
+  .on("end", () => taskTracker.end());
+```
+
+#### Want to compile faster?
+
+* add skipLibCheck to tsconfig.json (all of them)
+
+#### Why not just use "declaration:true" in tsconfig.json to get d.ts files?
+
+It doesn't work with allowJS: true.  I want that for some reason...
+TODO: remember why.
+
+#### Want to filter to just changed files?
+See the section above on incremental builds for why you don't.  But if you *do*, then:
+
+Option 1: use [gulp-changed-in-place](https://github.com/alexgorbatchev/gulp-changed-in-place)
+* Pro: Does what it says it does
+* Con: Uses expensive hashes instead of checking modification time.  On the plus side, that's probably a safer way to go in some edge cases.
+
+Option 2: check out the commented-out filterToChangedFiles function in this project's gulpfile.js.
+* Pro: Uses faster timestamp comparison.
+* Con: Not tested against scenarios like deleted files.
+
+#### Want to see what files are in the current stream?
+See the commented out outputFilesInStream function in this project's gulpfile.js.  It can be used like this:
+
+```
+return gulp.src(filesToCompile)
+           .pipe(ts())
+           .pipe(outputFilesInStream())
+           .pipe(gulp.dest(".");
+```
