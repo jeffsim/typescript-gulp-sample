@@ -46,7 +46,6 @@
 Sneak peak of the project that I'm working on which spawned this project:
 <a href="http://getduality.com/websiteImages/dualitypreview.png"><img src="http://getduality.com/websiteImages/dualitypreview.png" alt="Duality Preview" width="400"/></a>
 
-
 # How to run it
 
   - npm install (in the project root folder)
@@ -77,13 +76,15 @@ Sneak peak of the project that I'm working on which spawned this project:
 
 #### ProjectGroup Fields
 editor, plugins, tests, and samples are all examples of ProjectGroups.  Here's the structure of ProjectGroup:
--  *name*:string                 Name of the project group; output in the task header during build process.
--  *isLibrary*:bool              If true, then output is a library; otherwise it's an app.  editor and plugins are libraries and tests and samples are apps.  See buildAppProject and buildLibProject for differences.
--  *tsConfigFile*:?string        The projects in a ProjectGroup can either (a) use a common tsconfig.json file, or (b) use a tsconfig file per project.  If (a), then set this to the location of that file.
--  *filesToPrecopyToAllProjects*?:fileCopy[]  Optional list of files that should be precopied to all projects within the ProjectGroup fileCopy structure = {src:string, dest: string}.  src is relative to root; dest is relative to each project's path.
--  *filesToPrecopyOnce*?:fileCopy[]  Optional list of files that should be precopied once before projects are compiled. Example usage: all tests reference the same duality*.d.ts, so copy it once into the tests/typings folder.  NOTE: paths are relative to root.
--  *commonFiles*?:string[]       Optional list of files that should be including in compilation of all projects in the ProjectGroup.  e.g. All Tests include tests/typings/*.d.ts.
--  *projects*:Project[]          List of Projects within the ProjectGroup.
+| Field | Type | Description |
+| --- | --- |--- |
+| *name* | string | Name of the project group; output in the task header during build process|
+| *isLibrary* | bool | If true, then output is a library; otherwise it's an app.  editor and plugins are libraries and tests and samples are apps.  See buildAppProject and buildLibProject for differences|
+| *tsConfigFile* | string (optional) | The projects in a ProjectGroup can either (a) use a common tsconfig.json file, or (b) use a tsconfig file per project.  If (a), then set this to the location of that file|
+| *filesToPrecopyToAllProjects* | fileCopy[] (optional) | List of files that should be precopied to all projects within the ProjectGroup fileCopy structure = {src:string, dest: string}.  src is relative to root; dest is relative to each project's path|
+| *filesToPrecopyOnce* | fileCopy[] (optional) | List of files that should be precopied once before projects are compiled. Example usage: all tests reference the same duality*.d.ts, so copy it once into the tests/typings folder.  NOTE: paths are relative to root|
+| *commonFiles* | string[] (optional) | List of files that should be including in compilation of all projects in the ProjectGroup.  e.g. All Tests include tests/typings/*.d.ts|
+| *projects* | Project[] | List of Projects within the ProjectGroup|
 
 NOTE: each ProjectGroup can also define its own additional properties; e.g. the editor ProjectGroup includes version
 
@@ -92,9 +93,11 @@ NOTE: each ProjectGroup can also define its own additional properties; e.g. the 
 - This build env handles two different types of projects; applications and libraries
 
 #### Structure of Project object
--  *name*: string                Name of the Project
--  *path*: string                Path of the Project relative to root
--  *files*: string[]             List of files to compile; relative to project path.  If unspecified, defaults to '["**/*.ts"]', which == all TS files in the project folder.
+| Field | Type | Description |
+| --- | --- | --- |
+| *name* | string | Name of the Project
+| *path* | string | Path of the Project relative to root
+| *files* | string[] | List of files to compile; relative to project path.  If unspecified, defaults to '["**/*.ts"]', which == all TS files in the project folder.
 
 #### Library Projects
   - Meaningless by itself; intended to be used by actual apps. jquery and angular are examples of what I mean by 'library'
