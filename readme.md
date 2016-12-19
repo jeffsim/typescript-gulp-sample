@@ -403,11 +403,10 @@ Reference: [Names and Modules on Typescript site](https://www.typescriptlang.org
       - If it does apply, then you can see _massive_ compilation improvements here.  My duality project has about 200 .ts files in it, and being able to iteratively develop a sample without having to recompile the editor, plugins, and tests everytime is ridiculously nice (e.g. cuts a 30 second build time down to < 1 second!)
       - How it works
         - Maintains project-level modifiedFilesCache and tracks last modified times
-          - Note: need to change gulp.src.dest (fileCopy) to preserve modified time.  Gulp-preserve-time to the rescue!
-          - Before building a project
+          - Of note: using gulp.src().dest() works for copying a file, *but* it updates the last modified time in the process, which breaks how project-level incremental builds work.  Gulp-preserve-time to the rescue!
         - Building and bundling
-          - Basically the same, but no project to track bundle, so tracks in globals.modifiedBundleCache.  Yeah, I should project-ify the bundling; noted.
-  - What else you can do:
+          - Basically the same as Project building and bundling, except there's no project to track bundle, so the bundle's cache is instead tracked in bundle.modifiedCache.
+  - Other options:
     - IsolatedModules.  Why not here?  Include links from comment
   - Settings
     - incrementalBuild
