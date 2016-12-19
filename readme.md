@@ -76,10 +76,16 @@ I assume most of this mostly works in other quasi-IDEs like Atom, but I haven't 
 Note: I'm likely going to conflate the precise roles of Typescript and VS Code in this document; the lines between them blur at times for me (e.g. around tasks and tsconfig) and I haven't tried to suss out details.  I'll fix any incorrect assumptions over time.
 
 # How to test the build environment
-1. Get VS Code set up with the chrome debugging extension.  Setup a local web server (I personally prefer [Fenix](http://fenixwebserver.com/))
-2. npm install to get dependencies
-3. Drop some breakpoints in to ensure that source maps are working as you expect, build, and F5.
-4. To see the test runner work, just load tests.html after building.
+1. Get VS Code set up with the chrome debugging extension
+2. Setup a local web server (I personally prefer [Fenix](http://fenixwebserver.com/))
+    - Note: the port that launch.json uses is 1024; either use that one in Fenix when setting up the server, or pick a different number and update launch.json with that value. e.g.:
+<center><img src="http://getduality.com/websiteImages/fenixsetup.png" alt="Duality Preview" width="300"/></a></center>
+  
+3. npm install to get dependencies
+<center><img src="http://getduality.com/websiteImages/npminstall.png" alt="Installing via NPM"/></a></center>
+
+4. Drop some breakpoints in to ensure that source maps are working as you expect, build, and F5.
+5. To see the test runner work, just load tests.html after building.
 
 # From the top: Using gulp, gulpfile.js, and tasks
 While using the built-in tsc build system works well for relatively simple projects, I prefer gulp for anything more complex.
@@ -161,8 +167,9 @@ TODO: You can break gulpfile.js apart, but I haven't tackled that yet.
 The project system in this build environment supports a variety of self-contained projects as well as dependencies between them.
 
 ## ProjectGroups and Projects
-ProjectGroups and Projects are the core top-level containers for the build system.  One gulpfile compiles all of the Projects
-in all of the ProjectGroups.
+ProjectGroups and Projects are the core top-level containers for the build system.
+They are custom concepts created in this gulpfile; gulp has no built-in concept of projects.
+One gulpfile compiles all of the Projects in all of the ProjectGroups.
 
 ### ProjectGroups
 A ProjectGroup is a collection of Projects. A ProjectGroup contains information that pertains to all Projects in the group;
@@ -510,11 +517,14 @@ Note: all are as of time of writing.  Thx to internet reality, likely out of dat
 * A: Because pattern matchers don't (yet) apply to output window, which only works with absolute paths
 * SEE: [https://github.com/Microsoft/vscode/issues/6217](https://github.com/Microsoft/vscode/issues/6217)
 
-#### Chrome's massively annoying "unexpected crash" on debug restart
-Does Chrome complain every time you stop and restart debugging with a dialog about not shutting down correctly?  Add this to your build configuration in launch.json:
+#### Chrome's massively annoying "Restore pages?" dialog
+Does Chrome complain every time you stop and restart debugging with a dialog about not shutting down correctly?
 
-<img src="http://getduality.com/websiteImages/hateThisDialog.png" alt="God I hate this dialog" /></a>
+<center><img src="http://getduality.com/websiteImages/hateThisDialog.png" alt="God I hate this dialog"/></a>
+<br/>
+<i>God I hate this dialog</i></center>
 
+To fix this, Add this to your build configuration in launch.json:
 ```
 "runtimeArgs": [
     "--disable-session-crashed-bubble",
