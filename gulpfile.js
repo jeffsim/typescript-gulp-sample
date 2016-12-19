@@ -17,7 +17,8 @@ var concat = require("gulp-concat"),
     uglify = require("gulp-uglify");
 
 // TODO: Don't copy built-in-plugin d.ts files in dist/typings
-// TODO: Update joinPath to take varargs.  Use it on line 245 & others
+// TODO: Update joinPath to use join-path-js.  Use it on line 245 & others.
+//  RELATED: I'm passing ("src", ["**\*.ts"]) instead of ("src", "**\.ts")
 // TODO: I suspect I can use through2.obj() in places where I just need a stream to pass back?
 // TODO: Make gulpfile watch itself.  https://codepen.io/ScavaJripter/post/how-to-watch-the-same-gulpfile-js-with-gulp
 
