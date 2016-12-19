@@ -79,9 +79,11 @@ Note: I'm likely going to conflate the precise roles of Typescript and VS Code i
 1. Get VS Code set up with the chrome debugging extension
 2. Setup a local web server (I personally prefer [Fenix](http://fenixwebserver.com/))
     - Note: the port that launch.json uses is 1024; either use that one in Fenix when setting up the server, or pick a different number and update launch.json with that value. e.g.:
+<br/>
 <center><img src="http://getduality.com/websiteImages/fenixsetup.png" alt="Duality Preview" width="300"/></a></center>
   
 3. npm install to get dependencies
+<br/>
 <center><img src="http://getduality.com/websiteImages/npminstall.png" alt="Installing via NPM"/></a></center>
 
 4. Drop some breakpoints in to ensure that source maps are working as you expect, build, and F5.
