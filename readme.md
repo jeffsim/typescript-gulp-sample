@@ -43,6 +43,12 @@
 - This started simple, but has added more functionality and more abstraction over time.
 - This document: me documenting how I tackled each aspect.  There are likely better ways to do parts of this; if so, I&#39;d love to know about it!
 
+Sneak peak of the project that spawned this:
+
+<a href="http://getduality.com/websiteImages/dualitypreview.png"><img src="http://getduality.com/websiteImages/dualitypreview.png" 
+alt="Duality Preview" style="width: 400px;"/></a>
+
+
 # How to run it
 
   - npm install (in the project root folder)
