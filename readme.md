@@ -42,9 +42,9 @@ banging my head against this particular wall for a while...  Caveat emptor!
 * Don't copy built-in-plugin d.ts files in dist/typings
 * Update joinPath to use join-path-js.  Use it on line 245 & others.
   * Related: I'm passing ("src", ["\*\*\\\*.ts"]) instead of ("src", "\*\*\\.ts")
-* I suspect I can use through2.obj() in places where I just need a stream to pass back?
+* I suspect I can use through2.obj() in places where I just need a stream to pass back
 * Make gulpfile watch itself.  https://codepen.io/ScavaJripter/post/how-to-watch-the-same-gulpfile-js-with-gulp
-
+* When creating the list of files to compile, include all files in project.parentGroup.filesToPrecopyOnce (in their dest folder).  Once that's in place, remove all references to 'commonFiles'
 
 ### The project which spawned this one: Duality
 
@@ -84,7 +84,7 @@ I assume most of this mostly works in other quasi-IDEs like Atom, but I haven't 
 
 Note: I'm likely going to conflate the precise roles of Typescript and VS Code in this document; the lines between them blur at times for me (e.g. around tasks and tsconfig) and I haven't tried to suss out details.  I'll fix any incorrect assumptions over time.
 
-# How to test the build environment
+# How to use the build environment
 1. Get VS Code set up with the chrome debugging extension
 2. Setup a local web server (I personally prefer [Fenix](http://fenixwebserver.com/))
     - Note: the port that launch.json uses is 1024; either use that one in Fenix when setting up the server, or pick a different number and update launch.json with that value. e.g.:
@@ -104,7 +104,7 @@ I assume grunt works just as well, but gulp is the one I've opted for here.
 
 #### gulp and tasks.json
 
-To build with gulp, you need a tasks.json file which tells VS Code what to do when you signal 'build'
+To build with gulp, you need a tasks.json file which tells VS Code what to do when you start a build.
 There plenty of resources out there on how to get it set up, but here's a snippet from this project's tasks.json file.
 You can see the command ('gulp') as well as the task ('build-duality') which will get run.
 
@@ -126,6 +126,7 @@ You can see the command ('gulp') as well as the task ('build-duality') which wil
 }
 ```
 * Resource: [Gulp documentation](https://github.com/gulpjs/gulp/blob/master/docs/README.md)
+* Resource: [Tasks in VS Code](https://code.visualstudio.com/Docs/editor/tasks)
 
 #### Tasks
 
@@ -145,7 +146,7 @@ The flow goes like this:
 
 1. User triggers a build in VS Code (e.g. presses shift+Command+B or shift+control+B, depending on your OS)
 2. VS Code looks in tasks.json and finds the default task to run; in the above case, it's "build-duality"
-3. VS Code loads gulpfile.js and interprets it (note: could be cached for all I know), which registres tasks callbacks; in this case, for "build-duality"
+3. VS Code loads gulpfile.js and interprets it (note: could be cached for all I know), which registers task callbacks; in this case, for "build-duality"
 4. VS Code calls the function associated with the "build-duality" string in the code immediately above
 5. 'test' gets written to the console.
 
@@ -161,20 +162,23 @@ That said, see the section [Tasks, runSeries and runParallel](#tasks-runseries-a
 
 * Resource: [Tasks overview on VS Code site](https://code.visualstudio.com/Docs/editor/tasks).
 * Resource: [Tasks schema on VS Code site](https://code.visualstudio.com/docs/editor/tasks_appendix)
-* Resource: [Why you shouldn't even *ask* 'can I pass parameters to a task using run-sequence?'](https://github.com/OverZealous/run-sequence/issues/68)
+* Resource: [Why you shouldn't even ask 'can I pass parameters to a task using run-sequence?'](https://github.com/OverZealous/run-sequence/issues/68)
 
 #### Gulpfile.ts
 
-TODO: Why not gulpfile.ts?  you can actually do this, and the appeal of proper classes here is hard to say no to; but the extra compile step makes me itchy, and I want to wait until everything else is rock-stable before introducing that.
+*TODO: Why not gulpfile.ts?  you can actually do this, and the appeal of proper classes here is hard to say no to; but the extra compile step makes me itchy, and I want to wait until everything else is rock-stable before introducing that.*
+
 * Resource: [gulpfile.ts npm plugin](https://www.npmjs.com/package/gulpfile.ts)
 * Resource: [creating a gulpfile using typescript](https://medium.com/@pleerock/create-a-gulpfile-and-write-gulp-tasks-using-typescript-f08edebcac57)
 
 #### Just one 800 line file?  Really?  No desire to, say, split that up into rational components?
 
-TODO: You can break gulpfile.js apart, but I haven't tackled that yet.
+*TODO: You can break gulpfile.js apart, but I haven't tackled that yet.*
+
 * Resource: [Splitting a gulpfile into multiple files](http://macr.ae/article/splitting-gulpfile-multiple-files.html)
 
 # The Project System
+
 The project system in this build environment supports a variety of self-contained projects as well as dependencies between them.
 
 ## ProjectGroups and Projects
@@ -198,6 +202,29 @@ Here's the structure of ProjectGroup:
 | *commonFiles* | string[] \(optional) | List of files that should be including in compilation of all projects in the ProjectGroup.  e.g. All Tests include tests/typings/*.d.ts |
 | *projects* | Project[] | List of Projects within the ProjectGroup |
 
+And here is an example of a ProjectGroup, including Projects within it:
+
+```
+var plugins = {
+    name: "Plugins",
+    isLibrary: true,
+    filesToPrecopyToAllProjects: [{ src: "dist/typings/editor.d.ts", dest: "typings" }],
+    projects: [{
+        name: "debugDualityPlugin",
+        path: "plugins/duality/debugDualityPlugin",
+        includeInBundle: true,
+    }, {
+        name: "debugDuality2",
+        path: "plugins/duality/debugPlugin2",
+        includeInBundle: true,
+    }, {
+        name: "threejs",
+        path: "plugins/threeJS",
+        includeInBundle: false,
+    }]
+};
+```
+
 ### Projects
 Projects are the 'meat' of the system.  They come in two varieties; application projects and library projects.  Each project
 is self-contained (but can contain dependencies on other previously-built projects).
@@ -216,7 +243,7 @@ Library Projects are projects that are intended to be used by apps.  Details:
 - Both debug and minimized files are output (*-debug.js, *-min.js)
 - Generates definition (*.ts) files and copies them into /dist/typings
 
-Library Projects in this project:
+This build environment includes the following ProjectGroups with Library Projects in them:
 - Editor project: Generates editor-debug.js, editor-min.js, and editor.d.ts
 - Plugins project: For each plugin, generates [pluginname]-debug.js, [pluginname]-min.js, and [pluginname].d.ts
 
@@ -251,11 +278,61 @@ These are the folders that exist or are created by this build environment.
     - Contains a single tests.html file that can be directly loaded (but your webroot needs to be at the root of this repo's files)
 
 # Managing and moving files between projects at build time
-***TODO: This section***
 
-  - Building – files can be built into bld & output to /dist, or build into the source folder directly
-  - Files can be precopied at projectgroup or project level
-  - Files can be included without being copied (commonfiles).  Avoids.. duplication?
+Projects are inherently self-contained; they define the files within them as well as metadata about the project.  However, there
+are two instances in which Projects reach outside their path to acquire or place files:
+
+#### Output Library code to /bld and /dist
+Application Projects place compiled code alongside the source code to help them be more standalone.  Library Projects, however,
+are not intended to be standalone; they're intended to be included in Applications.  As such, Library Projects build their source
+into the /bld folder, and then place their final distributable files into the /dist folder.
+
+/bld holds temporary files which aren't useful outside of debugging/understanding the build process.
+
+/dist holds the final files that are intended to be used by applications.
+
+#### Precopying files
+ProjectGroups support copying previously built files into Projects.  This is useful for something like editor.d.ts, which all plugins need to use.
+It needs to be copied after it gets built in an earlier part of the build process.
+
+Note that, while we could just include editor.d.ts using the 'commonFiles' field described in a moment, it wouldn't get copied into the plugins' folders, and you therefore
+wouldn't have ambient typings when editing the plugins.
+
+There are two ways to copy files, both via  fields specified in a ProjectGroup:
+- **filesToPrecopyToAllProjects**	- Optional list of files that should be precopied to all projects within the ProjectGroup.  Example usage, from the plugins ProjectGroup:
+  ```
+  filesToPrecopyToAllProjects: [{ src: "dist/typings/editor.d.ts", dest: "typings" }]
+  ```
+- **filesToPrecopyOnce** - Optional list of files that should be precopied once before projects are compiled.  Example usage, from the tests ProjectGroup:
+  ```
+  filesToPrecopyOnce: [{ src: "dist/typings/" + bundle.typingFilename, dest: "tests/typings" }]
+  ```
+
+##### Referencing common files
+In addition to copying files into all Projects, you can also inject references to them in the ProjectGroup using the ProjectGroup's optional '**commonFiles**' field.  What this specifically
+does is: adds the file to the Project's list of files to compile, but doesn't actually copy the file into the Project's folder.
+This is useful when all Projects in a ProjectGroup reference the same file, and that file doesn't need to be present
+in the Projects' folders.
+
+Here's an example from the tests ProjectGroup,
+
+```
+commonFiles: ["tests/typings/*.d.ts"],
+```
+
+##### When to use which?
+* Do you have a file that needs to be present in all folders for both (a) compilation and (b) ambient typings?
+  - Do you have a separate tsconfig for each Project in the ProjectGroup?
+    - YES: Use ProjectGroup.filesToPrecopyToAllProjects
+    - NO: Use ProjectGroup.filesToPrecopyOnce
+    - Why, you ask? You need to do this due to how ambient typings seem to work; my assumption based on experimentation -
+     Ambient typings are resolved within the folder that has the tsconfig.json and all subfolders, but no parent folders.
+      - The Samples ProjectGroup is an example of per-project tsconfig.json files (so it would ProjectGroup.filesToPrecopyToAllProjects for any d.ts files)
+      - The Tests ProjectGroup  is an example of using a single shared tsconfig.json file between all projects (so it would ProjectGroup.filesToPrecopyOnce for any d.ts files)
+* Do you have a file that needs to be present for compilation by all Projects in a ProjectGroup, but *isn't* in the Projects' folders?
+  * Use ProjectGroup.commonFiles
+  * ***TODO: THIS IS ONLY TEMPORARILY NECESSARY***.  When creating the list of files to compile, I should include all files in project.parentGroup.filesToPrecopyOnce (in their dest folder).
+    * It's in the todo list at top of this file.
 
 # Bundling
 ***TODO: This section***
