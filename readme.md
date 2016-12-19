@@ -37,6 +37,15 @@ This is my evolving effort to create a gulp-based dev environment for my Typescr
 The information in this document will likely be sparse and, admittedly, at times assumed; it's what I've deduced after
 banging my head against this particular wall for a while...  Caveat emptor!
 
+### Current Status
+**Working!**  Everything functions as expected.  That said, here are the items at the top of my todo list:
+* Don't copy built-in-plugin d.ts files in dist/typings
+* Update joinPath to use join-path-js.  Use it on line 245 & others.
+  * Related: I'm passing ("src", ["\*\*\\\*.ts"]) instead of ("src", "\*\*\\.ts")
+* I suspect I can use through2.obj() in places where I just need a stream to pass back?
+* Make gulpfile watch itself.  https://codepen.io/ScavaJripter/post/how-to-watch-the-same-gulpfile-js-with-gulp
+
+
 ### The project which spawned this one: Duality
 
 My other (*very* early) project, called 'Duality', is an attempt to bring a Unity-like
@@ -58,7 +67,7 @@ separate plugin.
   - Wallaby-based tests that vet out Editor functionality.
 - Samples
   - Sample standalone apps that include and demonstrate editor functionality.
-The interesting thing about this structure is that it forces a number of different build types; some components are bundled
+The interesting thing about using Duality as the basis for this build environment is that Duality's structure forces a number of different build types; some components are bundled
 while others arent; some are minimized and some aren't; some have d.ts files generated and some don't; etc.
 The '[Project System](#the-project-system)' section in this document covers some of these differences.
 

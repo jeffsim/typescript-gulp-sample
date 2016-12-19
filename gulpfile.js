@@ -22,10 +22,6 @@ var concat = require("gulp-concat"),
 // TODO: I suspect I can use through2.obj() in places where I just need a stream to pass back?
 // TODO: Make gulpfile watch itself.  https://codepen.io/ScavaJripter/post/how-to-watch-the-same-gulpfile-js-with-gulp
 
-// Q: Why isn't tsc problem matcher working?
-// A: Because pattern matchers don't (yet) apply to output window, which only works with absolute paths
-// SEE: https://github.com/Microsoft/vscode/issues/6217
-
 var settings = {
     // Dump extra output during the build process
     verboseOutput: true,
