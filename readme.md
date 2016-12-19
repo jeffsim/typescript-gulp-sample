@@ -530,9 +530,8 @@ Note: all are as of time of writing.  Thx to internet reality, likely out of dat
 
 #### Chrome's massively annoying "Restore pages?" dialog
 Does Chrome complain every time you stop and restart debugging with a dialog about not shutting down correctly?
-
-<center><img src="http://getduality.com/websiteImages/hateThisDialog.png" alt="God I hate this dialog"/></a>
 <br/>
+<center><img src="http://getduality.com/websiteImages/hateThisDialog.png" alt="God I hate this dialog"/></a><br/>
 <i>God I hate this dialog</i></center>
 
 To fix this, Add this to your build configuration in launch.json:
@@ -552,7 +551,7 @@ Want to call a function when gulp finishes it's thing?  Listen for 'end' and cal
 
 #### Want to compile faster?
 
-Add skipLibCheck:true to tsconfig.json (all of them).  This skips type cehcking of d.ts files.
+Add skipLibCheck:true to tsconfig.json (all of them).  This skips type-checking of d.ts files.
 
 Reference: [Typescript 2.1 what's new](https://github.com/Microsoft/TypeScript/wiki/What's-new-in-TypeScript#new---skiplibcheck)
 
