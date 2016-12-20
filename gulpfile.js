@@ -8,7 +8,6 @@ var concat = require("gulp-concat"),
     glob = require("glob"),
     gulp = require("gulp"),
     gulpIf = require("gulp-if"),
-    path = require("path"),
     preservetime = require("gulp-preservetime"),
     rename = require("gulp-rename"),
     sourcemaps = require("gulp-sourcemaps"),
@@ -16,154 +15,26 @@ var concat = require("gulp-concat"),
     tsc = require("gulp-typescript"),
     uglify = require("gulp-uglify");
 
+
+// ====================================================================================================================
+// Load the build configuration.  This defines the ProjectGroups and Projects which will be built, and also defined
+// the primary 'buildAll' function (which needs to happen in the buildConfig file to allow it to define build order).
+//
+// ** This is the only file that you should have to modify! **
+//
+var buildConfig = require("./buildConfig")();
+
+
 // TODO: Don't copy built-in-plugin d.ts files in dist/typings
 // TODO: Update joinPath to use join-path-js.  Use it on line 245 & others.
-//  RELATED: I'm passing ("src", ["**\*.ts"]) instead of ("src", "**\.ts")
+// RELATED: I'm passing ("src", ["**\*.ts"]) instead of ("src", "**\.ts")
 // TODO: I suspect I can use through2.obj() in places where I just need a stream to pass back?
 // TODO: Make gulpfile watch itself.  https://codepen.io/ScavaJripter/post/how-to-watch-the-same-gulpfile-js-with-gulp
+// TODO: bundle iscurrently required, and currently only supports 1.  need to generalize this.
 
-var settings = {
-    // Dump extra output during the build process
-    verboseOutput: true,
-
-    // If true, then don't parallelize tasks.  Not something you would usually set; mostly just useful if you
-    // are having build issues and want cleaner output.
-    forceSerializedTasks: false,
-
-    // Set to true to enable project-level incremental builds.  File-level incremental builds are handled by a
-    // persistent 'watch' task, as TSC needs all files to compile properly.  Using gulp.watch maintains some state to
-    // reduce compilation time (about 10% in this sample on this machine.  I suspect a 'real' project with more files
-    // to compile would see more improvement).
-    // Another option is to use isolatedModules:true in tsconfig, but that requires external modules which this
-    // sample doesn't use.  Leaving these in now though as someday (looks wistfully into the distance) this may work
-    // Ref:
-    //  https://github.com/ivogabe/gulp-typescript/issues/228
-    //  https://github.com/mgechev/angular-seed/wiki/Speeding-the-build-up
-    incrementalBuild: true,
-
-    // By default, an incremental build would rebuild if *any* file in a project changes, including d.ts files.
-    // However, I think that you can skip recompilation of a project if only d.ts files have changed.  This field
-    // manages that.  If you're seeing weird incremental build behavior then try setting this to true, and let me know
-    recompiledOnDTSChanges: false
-};
 
 // Used to store global info
 var globals = {};
-
-
-// Bundle definition
-var bundle = {
-    baseName: "duality",
-    version: "0.0.1",
-
-    // For the first build, bundle.modifiedBundleCache is empty.  This will force a build of all files the first time
-    // a build is run; but that's unavoidable as we have no idea if the files have changed...
-    modifiedBundleCache: {}
-};
-
-// Generate file output file names; these include version stamp; e.g. 'duality-0.1.1.debug.js'
-var bundleNameVer = bundle.baseName + "-" + bundle.version;
-bundle.debugFilename = bundleNameVer + ".debug.js";
-bundle.minFilename = bundleNameVer + ".min.js";
-bundle.typingFilename = bundleNameVer + ".d.ts";
-
-
-// ====================================================================================================================
-// ======= PROJECTS ===================================================================================================
-// Editor, Plugins, Tests, and Samples are all defined using a common project format so that they can be handled
-// generically.  All projects must have at minimum: name:string, path:string, and files:string[]
-
-// editor, plugins, tests, and samples are all examples of ProjectGroups.  Here's the structure of ProjectGroup:
-//  name:string                 Name of the project group; output in the task header during build process.
-//  isLibrary:bool              If true, then output is a library; otherwise it's an app.  editor and plugins are
-//                              libraries and tests and samples are apps.  See buildAppProject and buildLibProject for
-//                              differences.
-//  tsConfigFile:?string        The projects in a ProjectGroup can either (a) use a common tsconfig.json file, or (b)
-//                              use a tsconfig file per project.  If (a), then set this to the location of that file.
-//  filesToPrecopyToAllProjects?:fileCopy[]  Optional list of files that should be precopied to all projects within the
-//                              ProjectGroup fileCopy structure = {src:string, dest: string}.  src is relative to root;
-//                              dest is relative to each project's path.
-//  filesToPrecopyOnce?:fileCopy[]  Optional list of files that should be precopied once before projects are compiled.
-//                              Example usage: all tests reference the same duality*.d.ts, so copy it once into the
-//                              tests/typings folder.  NOTE: paths are relative to root.
-//  commonFiles?:string[]       Optional list of files that should be including in compilation of all projects in the
-//                              ProjectGroup.  e.g. All Tests include tests/typings/*.d.ts.
-//  projects:Project[]          List of Projects within the ProjectGroup.
-//
-// Structure of Project object:
-//  name: string                Name of the Project
-//  path: string                Path of the Project relative to root
-//  files: string[]             List of files to compile; relative to project path.
-//                              If unspecified, defaults to '["**/*.ts"]', which == all TS files in the project folder.
-//
-// NOTE: each ProjectGroup can also define its own additional properties; e.g. the editor ProjectGroup includes version
-
-// Defines the main editor project group
-var editor = {
-    name: "Editor",
-    isLibrary: true,
-    projects: [{
-        name: "editor",
-        path: "editor",
-        includeInBundle: true
-    }]
-}
-
-// Defines all of the plugins that are built
-var plugins = {
-    name: "Plugins",
-    isLibrary: true,
-    // All projects in this group have these files copied into their sample folders.  Built files typically go here.
-    filesToPrecopyToAllProjects: [{ src: "dist/typings/editor.d.ts", dest: "typings" }],
-    projects: [{
-        name: "debugDualityPlugin",
-        path: "plugins/duality/debugDualityPlugin",
-        includeInBundle: true,
-    }, {
-        name: "debugDuality2",
-        path: "plugins/duality/debugPlugin2",
-        includeInBundle: true,
-    }, {
-        name: "threejs",
-        path: "plugins/threeJS",
-        includeInBundle: false,
-    }]
-};
-
-// Defines all of the tests that are built
-var tests = {
-    name: "Tests",
-    isLibrary: false,
-    tsConfigFile: "tests/tsconfig.json",
-    commonFiles: ["tests/typings/*.d.ts"],
-    filesToPrecopyOnce: [{ src: "dist/typings/" + bundle.typingFilename, dest: "tests/typings" }],
-    projects: [{
-        name: "test1",
-        path: "tests/test1",
-    }, {
-        name: "test2",
-        path: "tests/test2",
-    }]
-};
-
-// Defines all of the samples that are built
-var samples = {
-    name: "Samples",
-    isLibrary: false,
-    // All projects in this group have these files copied into their sample folders.  Built files typically go here.
-    filesToPrecopyToAllProjects: [{ src: "dist/typings/" + bundle.typingFilename, dest: "typings" }],
-    projects: [{
-        name: "testApp",
-        path: "samples/testApp",
-    }, {
-        name: "testApp2",
-        path: "samples/testApp2",
-        filesToPrecopy: [
-            // This test uses the threeJS plugin that we build, so copy the .js into ./lib and the d.ts into ./typings
-            { src: "dist/typings/threejs.d.ts", dest: "typings" },
-            { src: "dist/plugins/threeJS/*", dest: "lib" }]
-    }]
-};
 
 
 // ====================================================================================================================
@@ -210,10 +81,6 @@ function buildLib(project, projectGroup) {
     // Start things up, passing in the files to compile.
     return gulp.src(filesToCompile, { base: "." })
 
-        // See comment before definition of settings.incrementalBuild for reason why this is commented out.
-        //.pipe(gulpIf(settings.incrementalBuild, filterToChangedFiles()))
-        //.pipe(gulpIf(settings.incrementalBuild, outputFilesInStream("buildLib")))
-
         // Initialize sourcemap generation
         .pipe(sourcemaps.init())
 
@@ -243,10 +110,6 @@ function minifyLib(project) {
 
     // Start things up, passing in the previously built <project.name>-debug.js file in the bld folder
     return gulp.src(["bld/" + project.path + "/" + project.name + "-debug.js"], { base: "bld/" + project.path })
-
-        // See comment before definition of settings.incrementalBuild for reason why this is commented out.
-        //.pipe(gulpIf(settings.incrementalBuild, filterToChangedFiles()))
-        //.pipe(gulpIf(settings.incrementalBuild, outputFilesInStream("minifyLib")))
 
         // Initialize Sourcemap generation, telling it to load existing sourcemap (from the already-built *-debug.js)
         .pipe(sourcemaps.init({ loadMaps: true }))
@@ -297,9 +160,9 @@ function buildLibDefinitionFile(project) {
 
 
 // ====================================================================================================================
-// ======= BUILD BUNDLED EDITOR AND BUILT-IN PLUGINS ==================================================================
+// ======= BUILD BUNDLE ===============================================================================================
 
-function bundleEditorAndPlugins() {
+function createBundle() {
 
     outputTaskHeader("Build Bundle");
 
@@ -310,8 +173,8 @@ function bundleEditorAndPlugins() {
         return skipStream;
 
     var stream = through();
-    // First build the bundled "duality*.js" file
-    // once duality*.js is built, we can in parallel built duality*.min.js from it AND duality.d.ts.
+    // First build the "bundle-debug.js" file
+    // once bundle-debug.js is built, we can in parallel built bundle-min.js from it AND bundle.d.ts.
     buildBundledJS().on("end", () => {
         runParallel([
             () => minifyBundledJS(),
@@ -322,18 +185,18 @@ function bundleEditorAndPlugins() {
 }
 
 function buildBundledJS() {
-    // Start by adding duality editor to list of files to concat; then add all built-in plugins to list of files
-    var sourceFiles = ["bld/editor/editor-debug.js"];
-    for (var plugin of plugins.projects)
-        if (plugin.includeInBundle)
-            sourceFiles.push("bld/" + plugin.path + "/" + plugin.name + "-debug.js");
+    // Add all projects with 'includeInBundle'
+    var sourceFiles = [];
+    for (var projectGroup in buildConfig.projectGroups)
+        for (var project of buildConfig.projectGroups[projectGroup].projects)
+            sourceFiles.push("bld/" + project.path + "/" + project.name + "-debug.js");
 
     return buildBundle(sourceFiles, false, "Build bundled JS");
 }
 
-// Takes the pre-built duality*-debug.js file and bundle/minify it into duality*-min.js
+// Takes the pre-built bundle-debug.js file and bundle/minify it into bundle-min.js
 function minifyBundledJS() {
-    return buildBundle(["dist/" + bundle.debugFilename], true, "Minify bundled JS");
+    return buildBundle(["dist/" + buildConfig.bundle.debugFilename], true, "Minify bundled JS");
 }
 
 // This is passed in one or more already built files (with corresponding sourcemaps); it bundles them into just
@@ -342,8 +205,8 @@ function buildBundle(sourceFiles, minify, taskName) {
     var taskTracker = new TaskTracker(taskName);
     return gulp.src(sourceFiles)
         .pipe(sourcemaps.init({ loadMaps: true }))
-        .pipe(gulpIf(!minify, concat(bundle.debugFilename)))
-        .pipe(gulpIf(minify, rename(bundle.minFilename)))
+        .pipe(gulpIf(!minify, concat(buildConfig.bundle.debugFilename)))
+        .pipe(gulpIf(minify, rename(buildConfig.bundle.minFilename)))
         .pipe(gulpIf(minify, uglify()))
         .pipe(sourcemaps.write(".", {
             includeContent: false, sourceRoot: "/",
@@ -356,15 +219,17 @@ function buildBundle(sourceFiles, minify, taskName) {
         .on("end", () => taskTracker.end());
 }
 
-// Combines already-built editor.d.ts & built-in plugin d.ts files
+// Combines already-built d.ts files that should be included in the bundle
 function buildBundledDTS() {
     var taskTracker = new TaskTracker("Build bundled DTS");
-    var files = [joinPath("dist/typings", editor.name + ".d.ts")];
-    for (var plugin of plugins.projects)
-        if (plugin.includeInBundle)
-            files.push(joinPath("dist/typings", plugin.name + ".d.ts"));
+    var files = [];
+    for (var projectGroup in buildConfig.projectGroups)
+        for (var project of buildConfig.projectGroups[projectGroup].projects)
+            if (project.includeInBundle)
+                files.push(joinPath("dist/typings", project.name + ".d.ts"));
+
     return gulp.src(files)
-        .pipe(concat(bundle.typingFilename))
+        .pipe(concat(buildConfig.bundle.typingFilename))
         .pipe(gulp.dest("dist/typings"))
         .on("end", () => taskTracker.end());
 }
@@ -407,11 +272,6 @@ function buildAppProject(project, projectGroup) {
 
     // Transpile the project's Typescript into Javascript
     return gulp.src(filesToCompile, { base: project.path })
-
-        // See comment before definition of settings.incrementalBuild for reason why this is commented out.
-        //.pipe(gulpIf(settings.incrementalBuild, filterToChangedFiles()))
-        //.pipe(gulpIf(settings.incrementalBuild, outputFilesInStream("minifyLib")))
-
         .pipe(sourcemaps.init())
         .pipe(ts())
         .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: rootPath }))
@@ -425,26 +285,35 @@ function buildAppProject(project, projectGroup) {
 
 function clean() {
     var taskTracker = new TaskTracker("clean");
-    return del([
-        // Delete dist and bld
+
+    // Create list of files to delete.  Start with files that apply across all apps
+    var filesToDelete = [
+        // Delete /dist and /bld entirely
         "bld",
         "dist",
 
         // Delete all sourcemaps, everywhere
-        "./**/*.js.map",
+        "**/*.js.map",
 
-        // Cleanup tests folder
-        "./tests/typings/duality*.d.ts",
-        "./tests/**/*.js",
+        // Delete any previously built bundle.d.ts files
+        "**/typings/" + buildConfig.bundle.baseName + "*.d.ts"
+    ];
 
-        // Cleanup plugins folder
-        "./plugins/**/typings",
-        "./plugins/**/*.js",
+    // Only projects know what should be deleted within them.  In a lot of cases, that can be **/*.js (e.g. in tests)
+    // but in other cases it can't be - e.g. samples which have js in them.  So: each project has two choices:
+    //  define 'filesToClean:string[] to be an array of globs to delete (in addition to the ones in filesToDeletea above)
+    //  don't define filesToClean, in which case it defaults to **/*.js,
+    for (var projectGroup in buildConfig.projectGroups)
+        for (var project of buildConfig.projectGroups[projectGroup].projects) {
+            if (project.filesToClean) {
+                for (var fileToClean of project.filesToClean)
+                    filesToDelete.push(joinPath(project.path, fileToClean))
+            } else
+                filesToDelete.push(joinPath(project.path, "**/*.js"))
+        }
 
-        // Cleanup samples folder
-        // note: leave samples' *.js and /typings, as the sample may have some that shouldn't be deleted
-        "./samples/**/typings/duality*.d.ts"
-    ]).then(() => taskTracker.end());
+    // Perform the actual deletion
+    return del(filesToDelete).then(() => taskTracker.end());
 }
 
 // ====================================================================================================================
@@ -478,7 +347,7 @@ function runSeries(functions) {
 // This is mostly just a pass-through to event-stream; however, I allow the user to force serialized
 // task execution here
 function runParallel(callbacks) {
-    if (settings.forceSerializedTasks) {
+    if (buildConfig.settings.forceSerializedTasks) {
         // Run them in series
         return runSeries(callbacks);
     } else {
@@ -502,7 +371,7 @@ function precopyRequiredFiles(projectGroup) {
     var taskTracker = new TaskTracker("precopyRequiredFiles");
 
     var buildActions = [];
-    // Copy files that should be copied one time before a projectgroup is built; e.g. tests/typings/duality.d.ts is
+    // Copy files that should be copied one time before a projectgroup is built; e.g. tests/typings/bundle.d.ts is
     // used by all tests and needs to be copied from dist first.
     if (projectGroup.filesToPrecopyOnce)
         for (var fileToCopy of projectGroup.filesToPrecopyOnce) {
@@ -529,13 +398,13 @@ function precopyRequiredFiles(projectGroup) {
 
 // Called at the start of a top-level Task.
 function outputTaskHeader(taskName) {
-    if (settings.verboseOutput)
+    if (buildConfig.settings.verboseOutput)
         console.log("===== " + taskName + " =======================================================");
 }
 
 // Outputs task start and end info to console, including task run time.
 function TaskTracker(taskName, project) {
-    if (settings.verboseOutput) {
+    if (buildConfig.settings.verboseOutput) {
         var startTime = new Date();
         var startTimeStr = getTimeString(startTime);
         var outStr = startTimeStr + " Starting " + taskName;
@@ -546,7 +415,7 @@ function TaskTracker(taskName, project) {
 
     return {
         end: function () {
-            if (!settings.verboseOutput)
+            if (!buildConfig.settings.verboseOutput)
                 return;
             var endTime = new Date();
             var delta = (endTime - startTime) / 1000;
@@ -569,7 +438,7 @@ Commented out as I can't actually use these for incremental file-level compilati
 // Outputs (to console) the list of files in the current stream
 function outputFilesInStream(taskName) {
     return through.obj(function (file, enc, callback) {
-        if (settings.verboseOutput)
+        if (buildConfig.settings.verboseOutput)
             console.log("[" + taskName + "]: Dirty source file: " + file.relative);
         this.push(file);
         return callback();
@@ -600,7 +469,7 @@ function copyFile(src, destPath) {
     // See http://stackoverflow.com/questions/26177805/copy-files-with-gulp-while-preserving-modification-time
     return gulp.src(src)
         .pipe(gulp.dest(destPath))
-        .pipe(gulpIf(settings.incrementalBuild, preservetime()));
+        .pipe(gulpIf(buildConfig.settings.incrementalBuild, preservetime()));
 }
 
 
@@ -620,7 +489,7 @@ function copyFile(src, destPath) {
 function checkCanSkipBuildProject(project) {
 
     // Check if incremental builds are enabled
-    if (!settings.incrementalBuild)
+    if (!buildConfig.settings.incrementalBuild)
         return null;
 
     // If this is first build, then modifiedFilesCache is empty.  In that case, then create the modified file cache for
@@ -657,7 +526,7 @@ function checkCanSkipBuildProject(project) {
             return null;
 
         // If here, then no files in the project have changed; skip!
-        if (settings.verboseOutput)
+        if (buildConfig.settings.verboseOutput)
             console.log(getTimeString(new Date()) + " -- SKIPPING (" + project.name + "): no files changed");
     }
 
@@ -670,24 +539,25 @@ function checkCanSkipBuildProject(project) {
 function checkCanSkipBuildBundle() {
 
     // Check if incremental builds are enabled
-    if (!settings.incrementalBuild)
+    if (!buildConfig.settings.incrementalBuild)
         return null;
 
-    // If here, then bundle has been previously built, and bundle.modifiedBundleCache contains info.  Compare against
+    // If here, then bundle has been previously built, and buildConfig.bundle.modifiedBundleCache contains info.  Compare against
     // current state; if ANY file, then rebuild the bundle
-    var filesToCheck = ["bld/editor/editor-debug.js"];
-    for (var plugin of plugins.projects)
-        if (plugin.includeInBundle)
-            filesToCheck.push("bld/" + plugin.path + "/" + plugin.name + "-debug.js");
-
-    var fileHasChanged = checkForChangedFile(filesToCheck, bundle.modifiedBundleCache);
+    var filesToCheck = [];
+    for (var projectGroup in buildConfig.projectGroups) {
+        for (var project of buildConfig.projectGroups[projectGroup].projects)
+            if (project.includeInBundle)
+                filesToCheck.push("bld/" + project.path + "/" + project.name + "-debug.js");
+    }
+    var fileHasChanged = checkForChangedFile(filesToCheck, buildConfig.bundle.modifiedBundleCache);
 
     // If any files have changed then return null, signifying need to recreate the bundle
     if (fileHasChanged)
         return null;
 
     // If here, then no files that we'd bundle have changed; skip!
-    if (settings.verboseOutput)
+    if (buildConfig.settings.verboseOutput)
         console.log(getTimeString(new Date()) + " -- SKIPPING BUNDLE: no files changed");
 
     // Create and end a stream; caller will pass this on back up the chain.
@@ -707,9 +577,9 @@ function checkForChangedFile(filesToCheck, modifiedCache) {
             // File has changed; track change.  Since we're going to rebuild, continue comparing 
             // file change times and updating the latest
             modifiedCache[file] = lastModifiedTime;
-            
+
             // if recompiledOnDTSChanges is false, and the file is a d.ts file, then we do not trigger a recompilation.
-            if (!settings.recompiledOnDTSChanges && file.indexOf(".d.ts") > -1)
+            if (!buildConfig.settings.recompiledOnDTSChanges && file.indexOf(".d.ts") > -1)
                 continue;
 
             fileHasChanged = true;
@@ -742,70 +612,58 @@ function buildProjectGroup(projectGroup) {
     ]);
 }
 
-// Main build function; builds editor, plugins, tests, and samples; also bundles editor and plugins into duality*.js
-function buildDuality() {
-    return runSeries([
-        // editor, plugins, and bundle must be built in order
-        () => buildProjectGroup(editor),
-        () => buildProjectGroup(plugins),
-        () => bundleEditorAndPlugins(),
-        // side note: tests and samples could be built in parallel (so: use runParallel[...]) - but
-        // perf diff isn't noticable here, and it messes up my pretty, pretty output.  So: if you have a lot of tests
-        // and samples (... and typescript is actually doing multi-proc transpilation) then consider parallelizing these
-        () => buildProjectGroup(tests),
-        () => buildProjectGroup(samples)
-    ]);
-}
-
 // Does a complete rebuild
-gulp.task("rebuild-all-duality", function () {
-    if (settings.forceSerializedTasks)
+gulp.task("rebuild-all", function () {
+    if (buildConfig.settings.forceSerializedTasks)
         console.log("== Forcing serialized tasks ==");
 
     // Don't do an incremental build
-    settings.incrementalBuild = false;
+    buildConfig.settings.incrementalBuild = false;
 
     // Clean and then build.
     return runSeries([
         () => clean(),
-        () => buildDuality()
+
+        // TODO (HACK/CLEANUP): don't pass these in ><.
+        () => buildConfig.buildAll(runSeries, runParallel, buildProjectGroup, createBundle)
     ]);
 });
 
-// Builds duality
-gulp.task("build-duality", function () {
+// Builds everything (w/o cleaning first)
+gulp.task("build-all", function () {
     if (globals.isFirstBuild) {
         console.log("== First build; complete build will be performed ==");
         globals.isFirstBuild = false;
     }
-    
-    if (settings.forceSerializedTasks)
+
+    if (buildConfig.settings.forceSerializedTasks)
         console.log("== Forcing serialized tasks ==");
 
     // Do an incremental build at the project-level
-    settings.incrementalBuild = true;
+    buildConfig.settings.incrementalBuild = true;
 
-    return buildDuality();
+    // TODO (HACK/CLEANUP): don't pass these in ><.
+    return buildConfig.buildAll(runSeries, runParallel, buildProjectGroup, createBundle);
 });
 
 // Watches; also enables incremental builds.  You can just run this task and let it handle things
 // It does do a build-on-save which isn't exactly what I wanted to enable here (I'd prefer in this task to just track
-// dirty files and pass that list on to build-duality when a build task is started).  Should work as-is though.
-// NOTE: settings.incrementalBuild enables project-level incremental builds; it skips entire projects if nothing in
+// dirty files and pass that list on to build-all when a build task is started).  Should work as-is though.
+// NOTE: buildConfig.settings.incrementalBuild enables project-level incremental builds; it skips entire projects if nothing in
 // them has changed
 gulp.task('watch', function () {
     // Since this is always running, limit output to errors
-    // settings.verboseOutput = false;
+    // buildConfig.settings.verboseOutput = false;
 
     // Because we don't maintain information about files between Task runs, our modifiedCache is always empty
     // at the start, and thus we'll rebuild everything.  Track that it's the first build so that we can output it.
     globals.isFirstBuild = true;
 
-    // Watch for changes to ts files; when they occur, run the 'build-duality' task
+    // Watch for changes to ts files; when they occur, run the 'build-all' task
     gulp.watch([
         "**/*.ts",
         "!**/*.d.ts",
         "!dist",
         "!bld"
-    ], ["build-duality"])
+    ], ["build-all"])
 });

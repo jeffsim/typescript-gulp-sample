@@ -5,10 +5,12 @@
 * [VS Code](#vs-code)
 * [How to test the build environment](#how-to-test-the-build-environment)
 * [From the top: Using gulp and tasks](#from-the-top-using-gulp-and-tasks)
+* [buildConfig.js](#buildconfigjs)
 * [The Project System](#the-project-system)
 * [Folders](#folders)
 * [Managing and moving files between projects at build time](#managing-and-moving-files-between-projects-at-build-time)
 * [Bundling](#bundling)
+* [Build Settings](#build-settings)
 * [Debug and minified builds](#debug-and-minified-builds)
 * [Incremental Builds](#incremental-builds)
 * [Ordering files for Typescript build](#ordering-files-for-typescript-build)
@@ -176,6 +178,43 @@ That said, see the section [Tasks, runSeries and runParallel](#tasks-runseries-a
 *TODO: You can break gulpfile.js apart, but I haven't tackled that yet.*
 
 * Resource: [Splitting a gulpfile into multiple files](http://macr.ae/article/splitting-gulpfile-multiple-files.html)
+
+# buildConfig.js
+
+This file sits in the root of your build environment, alongside gulpfile.js.  It's loaded at the start of the build process,
+and defines everything about building your project.  **This should be the only file that you have to change**.
+
+See the buildConfig.js in this repo for an example of how it's used.  Here are the high level concepts:
+
+```
+var buildConfig = {
+    bundle: {
+        // information about the final bundled output.
+        // note: currently required, and currently only supports 1.  need to generalize this.
+    },
+    projectGroups: {
+        project1: {
+            // project definition
+        },
+        project2: {
+            // project definition
+        },
+        etc...
+    },
+
+    settings: {
+        // Contains settings which direct the build process.
+    },
+
+    buildAll: function(...) {
+        // Function that orders the actual build.  
+        // TODO: Funky having it here, but I haven't generalized ordering yet, and don't want specifics of
+        // project ordering to appear in the otherwise app-agnostic gulpfile.js
+    }
+}
+```
+
+Aspects of the above are discussed throughout the rest of this document.
 
 # The Project System
 
@@ -383,6 +422,31 @@ Reference: [Names and Modules on Typescript site](https://www.typescriptlang.org
 ### Other notes
 
 ***TODO: Typescript's --out option.  Didn't work for me; remember why.***
+
+# Build Settings
+The following settings are defined in buildConfig.js:
+    
+```
+buildConfig.settings = {
+    // Dump extra output during the build process
+    verboseOutput: true,
+
+    // If true, then don't parallelize tasks.  Not something you would usually set; mostly just useful if you
+    // are having build issues and want cleaner output.
+    forceSerializedTasks: false,
+
+    // Set to true to enable project-level incremental builds.  File-level incremental builds are handled by a
+    // persistent 'watch' task, as TSC needs all files to compile properly.  Using gulp.watch maintains some state to
+    // reduce compilation time (about 10% in this sample on this machine.  I suspect a 'real' project with more files
+    // to compile would see more improvement).
+    incrementalBuild: true,
+
+    // By default, an incremental build would rebuild if *any* file in a project changes, including d.ts files.
+    // However, I think that you can skip recompilation of a project if only d.ts files have changed.  This field
+    // manages that.  If you're seeing weird incremental build behavior then try setting this to true, and let me know
+    recompiledOnDTSChanges: false
+};
+```
 
 # Debug and minified builds
 ***TODO: This section***

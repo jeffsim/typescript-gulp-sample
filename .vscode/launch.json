@@ -20,7 +20,7 @@
             "type":"node",
             "program":"${workspaceRoot}/node_modules/gulp/bin/gulp.js",
             "stopOnEntry":false,
-            "args":["build-duality"],
+            "args":["rebuild-all"],
             "cwd":"${workspaceRoot}",
             "runtimeExecutable": null,
             "env":{}
