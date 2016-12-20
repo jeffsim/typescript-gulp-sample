@@ -108,7 +108,7 @@ I assume grunt works just as well, but gulp is the one I've opted for here.
 
 To build with gulp, you need a tasks.json file which tells VS Code what to do when you start a build.
 There plenty of resources out there on how to get it set up, but here's a snippet from this project's tasks.json file.
-You can see the command ('gulp') as well as the task ('build-duality') which will get run.
+You can see the command ('gulp') as well as the task ('build-all') which will get run.
 
 ```
 {
@@ -117,7 +117,7 @@ You can see the command ('gulp') as well as the task ('build-duality') which wil
     "command": "gulp",
     "tasks": [
         {
-            "taskName": "build-duality",
+            "taskName": "build-all",
             "args": [],
             "isBuildCommand": true,
             "isWatching": false,
@@ -133,12 +133,12 @@ You can see the command ('gulp') as well as the task ('build-duality') which wil
 #### Tasks
 
 When the build task is started, Gulp will automatically look for a file called 'gulpfile.js' in your root folder and run the 
-named task ('build-duality') from that file.
+named task ('build-all') from that file.
 
 Typically a Task is defined in the gulpfile something like this:
 
 ```
-gulp.task("build-duality", function () {
+gulp.task("build-all", function () {
     // Do stuff...
     console.log("test");
 });
@@ -147,9 +147,9 @@ gulp.task("build-duality", function () {
 The flow goes like this:
 
 1. User triggers a build in VS Code (e.g. presses shift+Command+B or shift+control+B, depending on your OS)
-2. VS Code looks in tasks.json and finds the default task to run; in the above case, it's "build-duality"
-3. VS Code loads gulpfile.js and interprets it (note: could be cached for all I know), which registers task callbacks; in this case, for "build-duality"
-4. VS Code calls the function associated with the "build-duality" string in the code immediately above
+2. VS Code looks in tasks.json and finds the default task to run; in the above case, it's "build-all"
+3. VS Code loads gulpfile.js and interprets it (note: could be cached for all I know), which registers task callbacks; in this case, for "build-all"
+4. VS Code calls the function associated with the "build-all" string in the code immediately above
 5. 'test' gets written to the console.
 
 You can also run specific tasks other than the default with shift+command/control+p, run task, \<task name>
@@ -677,7 +677,7 @@ the 'node gulp.js' option from VS Code's debug dropdown, drop a breakpoint into 
     "type":"node",
     "program":"${workspaceRoot}/node_modules/gulp/bin/gulp.js",
     "stopOnEntry":false,
-    "args":["build-duality"],
+    "args":["build-all"],
     "cwd":"${workspaceRoot}",
     "runtimeExecutable": null,
     "env":{}
