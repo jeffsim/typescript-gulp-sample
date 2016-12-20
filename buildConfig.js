@@ -156,7 +156,7 @@ module.exports = function () {
     //
     // And the hackery continues: I'm passing in runSeries and runParallel because they're defined in the outer file, and I
     // haven't yet split things up.
-    buildConfig.buildAll = function (runSeries, runParallel, buildProjectGroup, createBundle) {
+    buildConfig.buildAll = function (runSeries, runParallel, buildProjectGroup, createBundle, copyFile) {
         return runSeries([
             // editor, plugins, and bundle must be built in order
             () => buildProjectGroup(buildConfig.projectGroups.editor),

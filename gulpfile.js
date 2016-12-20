@@ -625,7 +625,7 @@ gulp.task("rebuild-all", function () {
         () => clean(),
 
         // TODO (HACK/CLEANUP): don't pass these in ><.
-        () => buildConfig.buildAll(runSeries, runParallel, buildProjectGroup, createBundle)
+        () => buildConfig.buildAll(runSeries, runParallel, buildProjectGroup, createBundle, copyFile)
     ]);
 });
 
@@ -643,7 +643,7 @@ gulp.task("build-all", function () {
     buildConfig.settings.incrementalBuild = true;
 
     // TODO (HACK/CLEANUP): don't pass these in ><.
-    return buildConfig.buildAll(runSeries, runParallel, buildProjectGroup, createBundle);
+    return buildConfig.buildAll(runSeries, runParallel, buildProjectGroup, createBundle, copyFile);
 });
 
 // Watches; also enables incremental builds.  You can just run this task and let it handle things
