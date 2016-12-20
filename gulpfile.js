@@ -8,7 +8,6 @@ var concat = require("gulp-concat"),
     glob = require("glob"),
     gulp = require("gulp"),
     gulpIf = require("gulp-if"),
-    preservetime = require("gulp-preservetime"),
     rename = require("gulp-rename"),
     sourcemaps = require("gulp-sourcemaps"),
     through = require('through2'),
@@ -17,17 +16,19 @@ var concat = require("gulp-concat"),
 
 
 // ====================================================================================================================
-// Load the build configuration.  This defines the ProjectGroups and Projects which will be built, and also defined
+// Load the build configuration.  This defines the ProjectGroups and Projects which will be built, and also defines
 // the primary 'buildAll' function (which needs to happen in the buildConfig file to allow it to define build order).
 //
-// ** This is the only file that you should have to modify! **
+// ** buildConfig.js is the only file that you should have to modify for your projects! **
 //
-var buildConfig = require("./buildConfig")();
+var buildConfig = require("./buildConfig");
 
+// Include build utilities
+var bu = require("./buildUtils");
 
 // TODO: Don't copy built-in-plugin d.ts files in dist/typings
 // TODO: Update joinPath to use join-path-js.  Use it on line 245 & others.
-// RELATED: I'm passing ("src", ["**\*.ts"]) instead of ("src", "**\.ts")
+// RELATED: I'm passing ("src", ["**\*.ts"]) instead of ("src", "**\.ts"). works, but needs to change if I want to use gulp-join-js
 // TODO: I suspect I can use through2.obj() in places where I just need a stream to pass back?
 // TODO: Make gulpfile watch itself.  https://codepen.io/ScavaJripter/post/how-to-watch-the-same-gulpfile-js-with-gulp
 // TODO: bundle iscurrently required, and currently only supports 1.  need to generalize this.
@@ -49,9 +50,9 @@ function buildLibProject(project, projectGroup) {
         return skipStream;
 
     // Build the library; then in parallel minify it and build d.ts file.
-    return runSeries([
+    return bu.runSeries([
         () => buildLib(project, projectGroup),
-        () => runParallel([
+        () => bu.runParallel([
             () => minifyLib(project),
             () => buildLibDefinitionFile(project)
         ])
@@ -64,7 +65,7 @@ function buildLibProject(project, projectGroup) {
 //      Places flattened transpiled JS file in /dist folder
 function buildLib(project, projectGroup) {
     var taskTracker = new TaskTracker("buildLib", project);
-    var projectFolderName = joinPath(project.path, "/");
+    var projectFolderName = bu.joinPath(project.path, "/");
 
     // Create list of files to compile.  Combination of common files in the project group AND files in the project
     var filesToCompile = [];
@@ -76,7 +77,7 @@ function buildLib(project, projectGroup) {
     var files = project.files || ["**/*.ts"];
     for (var projectFile of files)
         filesToCompile.push(projectFolderName + projectFile);
-    var ts = tsc.createProject(joinPath(project.path, "tsconfig.json"));
+    var ts = tsc.createProject(bu.joinPath(project.path, "tsconfig.json"));
 
     // Start things up, passing in the files to compile.
     return gulp.src(filesToCompile, { base: "." })
@@ -176,7 +177,7 @@ function createBundle() {
     // First build the "bundle-debug.js" file
     // once bundle-debug.js is built, we can in parallel built bundle-min.js from it AND bundle.d.ts.
     buildBundledJS().on("end", () => {
-        runParallel([
+        bu.runParallel([
             () => minifyBundledJS(),
             () => buildBundledDTS()])
             .on("end", () => stream.resume().end());
@@ -226,7 +227,7 @@ function buildBundledDTS() {
     for (var projectGroup in buildConfig.projectGroups)
         for (var project of buildConfig.projectGroups[projectGroup].projects)
             if (project.includeInBundle)
-                files.push(joinPath("dist/typings", project.name + ".d.ts"));
+                files.push(bu.joinPath("dist/typings", project.name + ".d.ts"));
 
     return gulp.src(files)
         .pipe(concat(buildConfig.bundle.typingFilename))
@@ -253,11 +254,11 @@ function buildAppProject(project, projectGroup) {
     var taskTracker = new TaskTracker("buildAppProject", project);
 
     // Create folder paths and ensure slashes are in the expected places
-    var projectFolderName = joinPath(project.path, "/");
-    var rootPath = joinPath("/", projectFolderName);
+    var projectFolderName = bu.joinPath(project.path, "/");
+    var rootPath = bu.joinPath("/", projectFolderName);
 
     // Tests all use the same tsconfig; samples project each have own tsconfig file
-    var ts = tsc.createProject(projectGroup.tsConfigFile || joinPath(projectFolderName, "tsconfig.json"));
+    var ts = tsc.createProject(projectGroup.tsConfigFile || bu.joinPath(projectFolderName, "tsconfig.json"));
 
     // Create list of files to compile.  Combination of common files in the project group AND files in the project
     var filesToCompile = [];
@@ -307,9 +308,9 @@ function clean() {
         for (var project of buildConfig.projectGroups[projectGroup].projects) {
             if (project.filesToClean) {
                 for (var fileToClean of project.filesToClean)
-                    filesToDelete.push(joinPath(project.path, fileToClean))
+                    filesToDelete.push(bu.joinPath(project.path, fileToClean))
             } else
-                filesToDelete.push(joinPath(project.path, "**/*.js"))
+                filesToDelete.push(bu.joinPath(project.path, "**/*.js"))
         }
 
     // Perform the actual deletion
@@ -318,53 +319,6 @@ function clean() {
 
 // ====================================================================================================================
 // ======= UTILTIES ===================================================================================================
-
-// Runs in order a series of functions which return streams or promises.  Does not call function N until function (N-1)
-// has reached the end of its stream; denoted by the stream triggering the "end" event.  Returns a stream.
-// NOTE: This is likely a pretty fragile function and doesn't support myriad realities of streams and promises.  Works
-//       for this gulpfile's needs, though!
-function runSeries(functions) {
-    var stream = through();
-    var i = 0, toRun = functions.length;
-    var run = () => {
-        if (i == toRun)
-            stream.resume().end();
-        else {
-            var result = functions[i++]();
-            if (result.on)
-                result.on("end", run);
-            else if (result.then)
-                result.then(run);
-            else
-                throw new Error("functions passed to runSeries must return a stream or promise");
-        }
-    };
-    run();
-    return stream;
-}
-
-// Runs a series of functions and returns a stream that is ended when all functions' streams end.
-// This is mostly just a pass-through to event-stream; however, I allow the user to force serialized
-// task execution here
-function runParallel(callbacks) {
-    if (buildConfig.settings.forceSerializedTasks) {
-        // Run them in series
-        return runSeries(callbacks);
-    } else {
-        // run them in parallel.  This function takes an array of callbacks, but event-stream expects already
-        // started streams, so call the callbacks here
-        // TODO: runSeries accepts both promises and streams, but eventStream only accepts streams.  convert them here
-        var funcs = [];
-        for (var func of callbacks)
-            funcs.push(func());
-        return eventStream.merge(funcs);
-    }
-}
-
-// Joins two paths together, removing multiple slashes (e.g. path/to//file)
-function joinPath(path, file) {
-    return (path + '/' + file).replace(/\/{2,}/, '/');
-}
 
 // Copies any previously built files into the ProjectGroup's Projects.
 function precopyRequiredFiles(projectGroup) {
@@ -376,35 +330,35 @@ function precopyRequiredFiles(projectGroup) {
     if (projectGroup.filesToPrecopyOnce)
         for (var fileToCopy of projectGroup.filesToPrecopyOnce) {
             let file = fileToCopy; // closure
-            buildActions.push(() => copyFile(file.src, file.dest));
+            buildActions.push(() => bu.copyFile(file.src, file.dest));
         }
     for (var project of projectGroup.projects) {
         // Copy files that should be copied to every project in the entire project group
         if (projectGroup.filesToPrecopyToAllProjects)
             for (var fileToCopy of projectGroup.filesToPrecopyToAllProjects) {
                 let file = fileToCopy, p = project; // closure
-                buildActions.push(() => copyFile(file.src, joinPath(p.path, file.dest)));
+                buildActions.push(() => bu.copyFile(file.src, bu.joinPath(p.path, file.dest)));
             }
 
         // Copy any files that this project needs
         if (project.filesToPrecopy)
             for (var fileToCopy of project.filesToPrecopy) {
                 let file = fileToCopy, p = project; // closure
-                buildActions.push(() => copyFile(file.src, joinPath(p.path, file.dest)));
+                buildActions.push(() => bu.copyFile(file.src, bu.joinPath(p.path, file.dest)));
             }
     }
-    return runParallel(buildActions).on("end", () => taskTracker.end());
+    return bu.runParallel(buildActions).on("end", () => taskTracker.end());
 }
 
 // Called at the start of a top-level Task.
 function outputTaskHeader(taskName) {
-    if (buildConfig.settings.verboseOutput)
+    if (settings.verboseOutput)
         console.log("===== " + taskName + " =======================================================");
 }
 
 // Outputs task start and end info to console, including task run time.
 function TaskTracker(taskName, project) {
-    if (buildConfig.settings.verboseOutput) {
+    if (settings.verboseOutput) {
         var startTime = new Date();
         var startTimeStr = getTimeString(startTime);
         var outStr = startTimeStr + " Starting " + taskName;
@@ -415,7 +369,7 @@ function TaskTracker(taskName, project) {
 
     return {
         end: function () {
-            if (!buildConfig.settings.verboseOutput)
+            if (!settings.verboseOutput)
                 return;
             var endTime = new Date();
             var delta = (endTime - startTime) / 1000;
@@ -430,46 +384,6 @@ function TaskTracker(taskName, project) {
 
 function getTimeString(time) {
     return "[" + time.toTimeString().replace(/.*(\d{2}:\d{2}:\d{2}).*/, "$1") + "]";
-}
-
-/*
-Commented out as I can't actually use these for incremental file-level compilation.  Leaving in as I may use them one day...
-
-// Outputs (to console) the list of files in the current stream
-function outputFilesInStream(taskName) {
-    return through.obj(function (file, enc, callback) {
-        if (buildConfig.settings.verboseOutput)
-            console.log("[" + taskName + "]: Dirty source file: " + file.relative);
-        this.push(file);
-        return callback();
-    });
-}
-
-// My quick-and-dirty reimplementation of changed-files-in-place which uses timeStamp instead of hash.
-var dirtyFileCache = {};
-function filterToChangedFiles() {
-    return through.obj(function (file, encoding, done) {
-        var lastModifiedTime = file.statSync.mtime.valueOf();
-        var cachedTime = dirtyFileCache[file.path];
-        if (!cachedTime || (cachedTime != lastModifiedTime)) {
-            // we've seen the file before and the lastModifiedTime has changed then pass it through; otherwise, drop it
-            dirtyFileCache[file.path] = lastModifiedTime;
-            this.push(file);
-        }
-        done();
-    });
-}*/
-
-
-// Copies a file from the source location to the dest location
-// This only supports copying a (glob of files) into a folder; destPath cannot be a specific filename.
-function copyFile(src, destPath) {
-    // Incremental builds need to maintain the src's modified time in the dest copy, but gulp.src.dest doesn't do that
-    // Automatically.  So: call preservetime.
-    // See http://stackoverflow.com/questions/26177805/copy-files-with-gulp-while-preserving-modification-time
-    return gulp.src(src)
-        .pipe(gulp.dest(destPath))
-        .pipe(gulpIf(buildConfig.settings.incrementalBuild, preservetime()));
 }
 
 
@@ -489,7 +403,7 @@ function copyFile(src, destPath) {
 function checkCanSkipBuildProject(project) {
 
     // Check if incremental builds are enabled
-    if (!buildConfig.settings.incrementalBuild)
+    if (!settings.incrementalBuild)
         return null;
 
     // If this is first build, then modifiedFilesCache is empty.  In that case, then create the modified file cache for
@@ -503,7 +417,7 @@ function checkCanSkipBuildProject(project) {
     // Generate list of files in the project that we should check
     var files = project.files || ["**/*.ts"];
     var filesToCheck = [];
-    var globFiles = glob.sync(joinPath(project.path, files));
+    var globFiles = glob.sync(bu.joinPath(project.path, files));
 
     // If project doesn't have any .ts files (e.g. it only has .js) then nothing to compile.
     // Bit tricky here; project *could* have .d.ts files; if it only has those, then don't compile
@@ -526,7 +440,7 @@ function checkCanSkipBuildProject(project) {
             return null;
 
         // If here, then no files in the project have changed; skip!
-        if (buildConfig.settings.verboseOutput)
+        if (settings.verboseOutput)
             console.log(getTimeString(new Date()) + " -- SKIPPING (" + project.name + "): no files changed");
     }
 
@@ -539,7 +453,7 @@ function checkCanSkipBuildProject(project) {
 function checkCanSkipBuildBundle() {
 
     // Check if incremental builds are enabled
-    if (!buildConfig.settings.incrementalBuild)
+    if (!settings.incrementalBuild)
         return null;
 
     // If here, then bundle has been previously built, and buildConfig.bundle.modifiedBundleCache contains info.  Compare against
@@ -557,7 +471,7 @@ function checkCanSkipBuildBundle() {
         return null;
 
     // If here, then no files that we'd bundle have changed; skip!
-    if (buildConfig.settings.verboseOutput)
+    if (settings.verboseOutput)
         console.log(getTimeString(new Date()) + " -- SKIPPING BUNDLE: no files changed");
 
     // Create and end a stream; caller will pass this on back up the chain.
@@ -579,7 +493,7 @@ function checkForChangedFile(filesToCheck, modifiedCache) {
             modifiedCache[file] = lastModifiedTime;
 
             // if recompiledOnDTSChanges is false, and the file is a d.ts file, then we do not trigger a recompilation.
-            if (!buildConfig.settings.recompiledOnDTSChanges && file.indexOf(".d.ts") > -1)
+            if (!settings.recompiledOnDTSChanges && file.indexOf(".d.ts") > -1)
                 continue;
 
             fileHasChanged = true;
@@ -600,13 +514,13 @@ function buildProjects(projectGroup) {
         let p = project; // closure
         buildActions.push(() => buildFunc(p, projectGroup));
     }
-    return runParallel(buildActions);
+    return bu.runParallel(buildActions);
 }
 
 // Builds a project group (e.g. editor, plugins, samples, or tests)
 function buildProjectGroup(projectGroup) {
     outputTaskHeader("Build " + projectGroup.name);
-    return runSeries([
+    return bu.runSeries([
         () => precopyRequiredFiles(projectGroup),
         () => buildProjects(projectGroup)
     ]);
@@ -614,18 +528,18 @@ function buildProjectGroup(projectGroup) {
 
 // Does a complete rebuild
 gulp.task("rebuild-all", function () {
-    if (buildConfig.settings.forceSerializedTasks)
+    if (settings.forceSerializedTasks)
         console.log("== Forcing serialized tasks ==");
 
     // Don't do an incremental build
-    buildConfig.settings.incrementalBuild = false;
+    settings.incrementalBuild = false;
 
     // Clean and then build.
-    return runSeries([
+    return bu.runSeries([
         () => clean(),
 
         // TODO (HACK/CLEANUP): don't pass these in ><.
-        () => buildConfig.buildAll(runSeries, runParallel, buildProjectGroup, createBundle, copyFile)
+        () => buildConfig.buildAll(buildProjectGroup, createBundle)
     ]);
 });
 
@@ -636,14 +550,14 @@ gulp.task("build-all", function () {
         globals.isFirstBuild = false;
     }
 
-    if (buildConfig.settings.forceSerializedTasks)
+    if (settings.forceSerializedTasks)
         console.log("== Forcing serialized tasks ==");
 
     // Do an incremental build at the project-level
-    buildConfig.settings.incrementalBuild = true;
+    settings.incrementalBuild = true;
 
     // TODO (HACK/CLEANUP): don't pass these in ><.
-    return buildConfig.buildAll(runSeries, runParallel, buildProjectGroup, createBundle, copyFile);
+    return buildConfig.buildAll(buildProjectGroup, createBundle);
 });
 
 // Watches; also enables incremental builds.  You can just run this task and let it handle things
@@ -653,7 +567,7 @@ gulp.task("build-all", function () {
 // them has changed
 gulp.task('watch', function () {
     // Since this is always running, limit output to errors
-    // buildConfig.settings.verboseOutput = false;
+    // settings.verboseOutput = false;
 
     // Because we don't maintain information about files between Task runs, our modifiedCache is always empty
     // at the start, and thus we'll rebuild everything.  Track that it's the first build so that we can output it.

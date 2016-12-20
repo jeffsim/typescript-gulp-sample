@@ -734,6 +734,20 @@ Reference: [Typescript 2.1 what's new](https://github.com/Microsoft/TypeScript/w
 It doesn't work with allowJS: true.  I want that for some reason...
 TODO: remember why.
 
+#### Want to access a global variable from another file?
+
+Use 'global'.  e.g.:
+
+```
+// file1.js
+global.test = 1;
+
+// file2.js
+require("./file1")
+console.log(test);    // <-- "1"
+```
+
+Reference: [https://github.com/aseemk/requireDir/issues/3](https://github.com/aseemk/requireDir/issues/3)
 #### Want to filter to just changed files?
 See the section above on incremental builds for why you don't.  But if you *do*, then:
 
