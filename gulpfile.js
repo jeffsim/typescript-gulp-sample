@@ -26,13 +26,12 @@ var buildConfig = require("./buildConfig");
 // Include build utilities
 var bu = require("./buildUtils");
 
-// TODO: Don't copy built-in-plugin d.ts files in dist/typings
 // TODO: Update joinPath to use join-path-js.  Use it on line 245 & others.
 // RELATED: I'm passing ("src", ["**\*.ts"]) instead of ("src", "**\.ts"). works, but needs to change if I want to use gulp-join-js
 // TODO: I suspect I can use through2.obj() in places where I just need a stream to pass back?
 // TODO: Make gulpfile watch itself.  https://codepen.io/ScavaJripter/post/how-to-watch-the-same-gulpfile-js-with-gulp
 // TODO: bundle iscurrently required, and currently only supports 1.  need to generalize this.
-
+// TODO: Outputting '/// reference' in duality.d.ts.
 
 // Used to store global info
 var globals = {};
@@ -144,14 +143,15 @@ function minifyLib(project) {
 // NOTE: 'declaration:true' in tsconfig.json doesn't support flattening into a single d.ts file, so using this instead.
 // Ideally would use the built-in version, but can't yet.  See: https://github.com/Microsoft/TypeScript/issues/2568
 function buildLibDefinitionFile(project) {
-    var taskTracker = new TaskTracker("buildLibDefinitionFile", project);
     var stream = through();
+    var outputFile = (project.includeInBundle ? "bld" : "dist") + "/typings/" + project.name + ".d.ts"
+    var taskTracker = new TaskTracker("buildLibDefinitionFile", project);
     dtsGenerator.default({
         name: project.name,
         project: project.path,
         rootDir: "./",
         exclude: ["./**/*.d.ts"],
-        out: "dist/typings/" + project.name + '.d.ts'
+        out: outputFile
     }).then(() => {
         taskTracker.end();
         stream.resume().end();
@@ -190,7 +190,8 @@ function buildBundledJS() {
     var sourceFiles = [];
     for (var projectGroup in buildConfig.projectGroups)
         for (var project of buildConfig.projectGroups[projectGroup].projects)
-            sourceFiles.push("bld/" + project.path + "/" + project.name + "-debug.js");
+            if (project.includeInBundle)
+                sourceFiles.push("bld/" + project.path + "/" + project.name + "-debug.js");
 
     return buildBundle(sourceFiles, false, "Build bundled JS");
 }
@@ -227,7 +228,7 @@ function buildBundledDTS() {
     for (var projectGroup in buildConfig.projectGroups)
         for (var project of buildConfig.projectGroups[projectGroup].projects)
             if (project.includeInBundle)
-                files.push(bu.joinPath("dist/typings", project.name + ".d.ts"));
+                files.push(bu.joinPath("bld/typings", project.name + ".d.ts"));
 
     return gulp.src(files)
         .pipe(concat(buildConfig.bundle.typingFilename))
