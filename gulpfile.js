@@ -30,7 +30,7 @@ var bu = require("./buildUtils");
 // RELATED: I'm passing ("src", ["**\*.ts"]) instead of ("src", "**\.ts"). works, but needs to change if I want to use gulp-join-js
 // TODO: I suspect I can use through2.obj() in places where I just need a stream to pass back?
 // TODO: Make gulpfile watch itself.  https://codepen.io/ScavaJripter/post/how-to-watch-the-same-gulpfile-js-with-gulp
-// TODO: bundle iscurrently required, and currently only supports 1.  need to generalize this.
+// TODO: bundle is currently required, and currently only supports 1.  need to generalize this.
 // TODO: Outputting '/// reference' in duality.d.ts.
 
 // Used to store global info
@@ -93,11 +93,11 @@ function buildLib(project, projectGroup) {
         // Write sourcemaps into the folder(s) set by the following gulp.dest calls
         .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: "/" }))
 
+        // Always copy built library output into /bld/<project.path>
+        .pipe(gulp.dest("bld/" + project.path))
+
         // If the project isn't built-in, then it's distributable; copy minified version into dist/<project.path>
         .pipe(gulpIf(!project.includeInBundle, gulp.dest("dist/" + project.path)))
-
-        // Copy built output into /bld/<project.path>
-        .pipe(gulp.dest("bld/" + project.path))
 
         // Output end of task
         .on("end", () => taskTracker.end())
@@ -129,11 +129,11 @@ function minifyLib(project) {
             mapSources: (path) => path.substr(1)
         }))
 
+        // Always copy built library output into /bld/<project.path>
+        .pipe(gulp.dest("bld/" + project.path))
+
         // If the project isn't built-in, then it's distributable; copy minified version into dist/<project.path>
         .pipe(gulpIf(!project.includeInBundle, gulp.dest("dist/" + project.path)))
-
-        // Copy built output into /bld/<project.path>
-        .pipe(gulp.dest("bld/" + project.path))
 
         // Output end of task
         .on("end", () => taskTracker.end())
@@ -144,6 +144,9 @@ function minifyLib(project) {
 // Ideally would use the built-in version, but can't yet.  See: https://github.com/Microsoft/TypeScript/issues/2568
 function buildLibDefinitionFile(project) {
     var stream = through();
+
+    // If the library is included in the bundle, then drop its d.ts file into bld since it's not distributable, and will
+    // be included in the bundle's d.ts file.  If instead it's not bundled, then drop the d.ts file into /dist.
     var outputFile = (project.includeInBundle ? "bld" : "dist") + "/typings/" + project.name + ".d.ts"
     var taskTracker = new TaskTracker("buildLibDefinitionFile", project);
     dtsGenerator.default({
@@ -179,8 +182,8 @@ function createBundle() {
     buildBundledJS().on("end", () => {
         bu.runParallel([
             () => minifyBundledJS(),
-            () => buildBundledDTS()])
-            .on("end", () => stream.resume().end());
+            () => buildBundledDTS()
+        ]).on("end", () => stream.resume().end());
     });
     return stream;
 }
