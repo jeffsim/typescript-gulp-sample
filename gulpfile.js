@@ -21,16 +21,19 @@ var concat = require("gulp-concat"),
 //
 // ** buildConfig.js is the only file that you should have to modify for your projects! **
 //
-var buildConfig = require("./buildConfig");
+var buildConfig = require("./buildConfig").initialize();
 
 // Include build utilities
 var bu = require("./buildUtils");
+
+// TODO: Add app-bundles.  Test!
+// TODO: Add minified apps
+// TODO: Given the above, can I merge buildLibProject and buildAppProject?
 
 // TODO: Update joinPath to use join-path-js.  Use it on line 245 & others.
 // RELATED: I'm passing ("src", ["**\*.ts"]) instead of ("src", "**\.ts"). works, but needs to change if I want to use gulp-join-js
 // TODO: I suspect I can use through2.obj() in places where I just need a stream to pass back?
 // TODO: Make gulpfile watch itself.  https://codepen.io/ScavaJripter/post/how-to-watch-the-same-gulpfile-js-with-gulp
-// TODO: bundle is currently required, and currently only supports 1.  need to generalize this.
 // TODO: Outputting '/// reference' in duality.d.ts.
 
 // Used to store global info
@@ -60,7 +63,7 @@ function buildLibProject(project, projectGroup) {
 
 // Build a single library project
 //      Transpiles TS into JS and flattens JS into single "*-debug.js" file.
-//      Is included in the bundled output file if includeInBundle == true
+//      Is included in the bundled output file if includeInBundle != undefined
 //      Places flattened transpiled JS file in /dist folder
 function buildLib(project, projectGroup) {
     var taskTracker = new TaskTracker("buildLib", project);
@@ -93,11 +96,11 @@ function buildLib(project, projectGroup) {
         // Write sourcemaps into the folder(s) set by the following gulp.dest calls
         .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: "/" }))
 
-        // Always copy built library output into /bld/<project.path>
-        .pipe(gulp.dest("bld/" + project.path))
-
         // If the project isn't built-in, then it's distributable; copy minified version into dist/<project.path>
         .pipe(gulpIf(!project.includeInBundle, gulp.dest("dist/" + project.path)))
+
+        // Always copy built library output into /bld/<project.path>
+        .pipe(gulp.dest("bld/" + project.path))
 
         // Output end of task
         .on("end", () => taskTracker.end())
@@ -129,11 +132,11 @@ function minifyLib(project) {
             mapSources: (path) => path.substr(1)
         }))
 
-        // Always copy built library output into /bld/<project.path>
-        .pipe(gulp.dest("bld/" + project.path))
-
         // If the project isn't built-in, then it's distributable; copy minified version into dist/<project.path>
         .pipe(gulpIf(!project.includeInBundle, gulp.dest("dist/" + project.path)))
+
+        // Always copy built library output into /bld/<project.path>
+        .pipe(gulp.dest("bld/" + project.path))
 
         // Output end of task
         .on("end", () => taskTracker.end())
@@ -145,9 +148,9 @@ function minifyLib(project) {
 function buildLibDefinitionFile(project) {
     var stream = through();
 
-    // If the library is included in the bundle, then drop its d.ts file into bld since it's not distributable, and will
+    // If the library is included in a bundle, then drop its d.ts file into bld since it's not distributable, and will
     // be included in the bundle's d.ts file.  If instead it's not bundled, then drop the d.ts file into /dist.
-    var outputFile = (project.includeInBundle ? "bld" : "dist") + "/typings/" + project.name + ".d.ts"
+    var outputFile = (project.includeInBundle ? "bld" : "dist") + "/typings/" + project.name + ".d.ts";
     var taskTracker = new TaskTracker("buildLibDefinitionFile", project);
     dtsGenerator.default({
         name: project.name,
@@ -166,52 +169,52 @@ function buildLibDefinitionFile(project) {
 // ====================================================================================================================
 // ======= BUILD BUNDLE ===============================================================================================
 
-function createBundle() {
+function createBundle(bundle) {
 
     outputTaskHeader("Build Bundle");
 
     // If none of the files that we're going to bundle have changed then don't build bundle.
     // Returns a stream object that can be returned directly.
-    var skipStream = checkCanSkipBuildBundle();
+    var skipStream = checkCanSkipBuildBundle(bundle);
     if (skipStream)
         return skipStream;
 
     var stream = through();
     // First build the "bundle-debug.js" file
     // once bundle-debug.js is built, we can in parallel built bundle-min.js from it AND bundle.d.ts.
-    buildBundledJS().on("end", () => {
+    buildBundledJS(bundle).on("end", () => {
         bu.runParallel([
-            () => minifyBundledJS(),
-            () => buildBundledDTS()
+            () => minifyBundledJS(bundle),
+            () => buildBundledDTS(bundle)
         ]).on("end", () => stream.resume().end());
     });
     return stream;
 }
 
-function buildBundledJS() {
-    // Add all projects with 'includeInBundle'
+function buildBundledJS(bundle) {
+    // Add all projects with 'includeInBundle' == the passed-in bundle
     var sourceFiles = [];
     for (var projectGroup in buildConfig.projectGroups)
         for (var project of buildConfig.projectGroups[projectGroup].projects)
-            if (project.includeInBundle)
+            if (project.includeInBundle == bundle)
                 sourceFiles.push("bld/" + project.path + "/" + project.name + "-debug.js");
 
-    return buildBundle(sourceFiles, false, "Build bundled JS");
+    return buildBundle(bundle, sourceFiles, false, "Build bundled JS");
 }
 
 // Takes the pre-built bundle-debug.js file and bundle/minify it into bundle-min.js
-function minifyBundledJS() {
-    return buildBundle(["dist/" + buildConfig.bundle.debugFilename], true, "Minify bundled JS");
+function minifyBundledJS(bundle) {
+    return buildBundle(bundle, ["dist/" + bundle.debugFilename], true, "Minify bundled JS");
 }
 
 // This is passed in one or more already built files (with corresponding sourcemaps); it bundles them into just
 // one file and minifies if so requested.
-function buildBundle(sourceFiles, minify, taskName) {
+function buildBundle(bundle, sourceFiles, minify, taskName) {
     var taskTracker = new TaskTracker(taskName);
     return gulp.src(sourceFiles)
         .pipe(sourcemaps.init({ loadMaps: true }))
-        .pipe(gulpIf(!minify, concat(buildConfig.bundle.debugFilename)))
-        .pipe(gulpIf(minify, rename(buildConfig.bundle.minFilename)))
+        .pipe(gulpIf(!minify, concat(bundle.debugFilename)))
+        .pipe(gulpIf(minify, rename(bundle.minFilename)))
         .pipe(gulpIf(minify, uglify()))
         .pipe(sourcemaps.write(".", {
             includeContent: false, sourceRoot: "/",
@@ -224,17 +227,17 @@ function buildBundle(sourceFiles, minify, taskName) {
         .on("end", () => taskTracker.end());
 }
 
-// Combines already-built d.ts files that should be included in the bundle
-function buildBundledDTS() {
+// Combines already-built d.ts files that should be included in the passed-in bundle
+function buildBundledDTS(bundle) {
     var taskTracker = new TaskTracker("Build bundled DTS");
     var files = [];
     for (var projectGroup in buildConfig.projectGroups)
         for (var project of buildConfig.projectGroups[projectGroup].projects)
-            if (project.includeInBundle)
+            if (project.includeInBundle == bundle)
                 files.push(bu.joinPath("bld/typings", project.name + ".d.ts"));
 
     return gulp.src(files)
-        .pipe(concat(buildConfig.bundle.typingFilename))
+        .pipe(concat(bundle.typingFilename))
         .pipe(gulp.dest("dist/typings"))
         .on("end", () => taskTracker.end());
 }
@@ -245,7 +248,7 @@ function buildBundledDTS() {
 
 // Builds a single App project
 //      Places transpiled JS files alongside source TS files
-//      Not included in the bundled output file
+//      Not included in a bundled output file
 //      Doesn't build minified versions
 //      Doesn't output Typings
 function buildAppProject(project, projectGroup) {
@@ -281,6 +284,7 @@ function buildAppProject(project, projectGroup) {
         .pipe(ts())
         .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: rootPath }))
         .pipe(gulp.dest(projectFolderName))
+
         .on("end", () => taskTracker.end());
 }
 
@@ -299,10 +303,12 @@ function clean() {
 
         // Delete all sourcemaps, everywhere
         "**/*.js.map",
-
-        // Delete any previously built bundle.d.ts files
-        "**/typings/" + buildConfig.bundle.baseName + "*.d.ts"
     ];
+
+    // Delete any previously built bundle.d.ts files that were placed into app folders.  Edge case: If you've changed
+    // the list of bundles in buildConfig.bundles, then this won't clean up the detritus of any removed ones.
+    for (var bundle in buildConfig.bundles)
+        filesToDelete.push("**/typings/" + buildConfig.bundles[bundle.name] + "*.d.ts");
 
     // Only projects know what should be deleted within them.  In a lot of cases, that can be **/*.js (e.g. in tests)
     // but in other cases it can't be - e.g. samples which have js in them.  So: each project has two choices:
@@ -454,7 +460,7 @@ function checkCanSkipBuildProject(project) {
     return stream;
 }
 
-function checkCanSkipBuildBundle() {
+function checkCanSkipBuildBundle(bundle) {
 
     // Check if incremental builds are enabled
     if (!settings.incrementalBuild)
@@ -465,7 +471,7 @@ function checkCanSkipBuildBundle() {
     var filesToCheck = [];
     for (var projectGroup in buildConfig.projectGroups) {
         for (var project of buildConfig.projectGroups[projectGroup].projects)
-            if (project.includeInBundle)
+            if (project.includeInBundle == bundle)
                 filesToCheck.push("bld/" + project.path + "/" + project.name + "-debug.js");
     }
     var fileHasChanged = checkForChangedFile(filesToCheck, buildConfig.bundle.modifiedBundleCache);
