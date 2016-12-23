@@ -1,5 +1,7 @@
 # **This readme is very much a work in progress!**
 
+# **It's also out of date at the moment**
+
 # Table of Contents
 * [What is this?](#what-is-this)
 * [VS Code](#vs-code)

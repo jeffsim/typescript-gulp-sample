@@ -28,13 +28,6 @@ var buildSettings = require("./buildSettings");
 // Include build utilities
 var bu = require("./buildUtils");
 
-// DONE THIS CHECKIN:
-// * Add app-bundles
-// * Add minified apps
-// * Merge buildLibProject and buildAppProject
-// * Split out: buildSettings
-// * Build alltests.js bundle
-
 // NEXT CHECKIN:
 // * Given changes, update readme.
 // * Add support for extraFilesToInclude and apply to testApp2/testJS.js
@@ -572,7 +565,7 @@ gulp.task("rebuild-all", function () {
         () => clean(),
 
         // TODO (HACK/CLEANUP): don't pass these in ><.
-     //   () => buildConfig.buildAll(buildProjectGroup, createAggregateBundle)
+        () => buildConfig.buildAll(buildProjectGroup, createAggregateBundle)
     ]);
 });
 
