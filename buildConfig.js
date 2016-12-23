@@ -39,6 +39,9 @@ module.exports = {
         //  projectDefaults: {}         Specifies default values for projects in the projectgroup.  can be any field that can be set on a project
         //                              Values can still be overridden by explicitly specifying in a project.
         //  projects:Project[]          List of Projects within the ProjectGroup.
+        //  extraFilesToBundle:string[] List of files to include in the project bundle.  e.g. preexisting js files.
+        //                              Note: this requires that allowJs be set to true in the project's tsconfig.json file
+        //                              so that tsc passes them through; otherwise they'll get dropped silently
         //
         // Structure of Project object:
         //  name: string                Name of the Project
@@ -291,6 +294,9 @@ module.exports = {
                         // This test uses the threeJS plugin that we build, so copy the .js into ./lib and the d.ts into ./typings
                         { src: "bld/plugins/threeJS/typings/threejs.d.ts", dest: "typings" },
                         { src: "bld/plugins/threeJS/*", dest: "lib" }],
+                    
+                    // Add testJS.js to the bundle so that it doesn't have to be explicitly included
+                    extraFilesToBundle: ["testJS.js"],
 
                     // This sample has javascript files in it that already exist, so we can't simply clean '**/*.js' - 
                     // specify the set of filesToClean.

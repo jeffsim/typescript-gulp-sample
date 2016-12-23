@@ -30,12 +30,13 @@ var bu = require("./buildUtils");
 
 // NEXT CHECKIN:
 // * Given changes, update readme.
-// * Add support for extraFilesToInclude and apply to testApp2/testJS.js
 // * replace bld and dist with settings.bldPath and settings.distPath throughout
 //   * Change so that dist, /dist, and ./dist are all valid distPaths.
 // * Update joinPath to use join-path-js.  Use it on line 245 & others.
-//
+// * move buildUtils.js into /build?
 // * Create multiple simple example samples under a 'moreSamples' folder
+//   - need to figure out how to NOT copy gulpfile and buildBundleUtils etc into every one.
+
 // * Is it possible to now combine buildProject and minifyProject into one?
 // * RELATED - Can I combine minifyAggregateBundledJS and buildAggregateBundledJS?
 // * add callback to edit all files.  remove everything between //debugstart and //debugend for non-debug build.
@@ -92,6 +93,7 @@ function copyProjectResultToOutputFolder(project) {
 function buildProject(project) {
     var taskTracker = new TaskTracker("buildProject", project);
     var projectFolderName = bu.joinPath(project.path, "/");
+    var ts = tsc.createProject(project.projectGroup.tsConfigFile || bu.joinPath(projectFolderName, "tsconfig.json"));
 
     // Create list of files to compile.  Combination of common files in the project group AND files in the project
     var filesToCompile = project.files.slice();
@@ -99,8 +101,16 @@ function buildProject(project) {
         for (var commonFile of project.projectGroup.commonFiles)
             filesToCompile.push(commonFile);
 
+    if (project.extraFilesToBundle)
+        for (var file of project.extraFilesToBundle) {
+            // debugstart
+            if (file.indexOf(".js") != -1 && !ts.options.allowJs)
+                throw Error("Including .js files via project.extraFilesToBundle requires that allowJs be set in the project's tsconfig.json");
+            // debugend
+            filesToCompile.push(bu.joinPath(project.path, file));
+        }
+
     // TODO (CLEANUP): is the base:"." necessary, or is that the default value already?
-    var ts = tsc.createProject(project.projectGroup.tsConfigFile || bu.joinPath(projectFolderName, "tsconfig.json"));
     return gulp.src(filesToCompile, { base: "." })
 
         // Initialize sourcemap generation
