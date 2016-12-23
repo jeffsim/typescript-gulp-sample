@@ -1,12 +1,12 @@
 describe('Scrollbar tests', () => {
 
-    it('should success', (done) => {
+    it('should succeed', (done) => {
         var v = new Duality.Visual();
         expect(v.test() == "asdf")
         done();
     });
 
-    it('should also success', (done) => {
+    it('should also succeed', (done) => {
         var e = new Duality.Editor();
         expect(e.test() == "qwer")
         done();
