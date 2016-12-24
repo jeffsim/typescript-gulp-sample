@@ -1,5 +1,4 @@
 var bu = require("./gulpBuild/buildUtils"),
-    bundleUtil = require("./gulpBuild/buildBundleUtils"),
     buildSettings = require("./gulpBuild/buildSettings");
 
 
@@ -150,7 +149,7 @@ function initialize() {
 
     // finish initializing aggregate bundles.  need to do before initalizing buildConfig.projectgroups since
     // they may refer to it.
-    bundleUtil.finishInitializingBundles(buildConfig);
+    bu.finishInitializingBundles(buildConfig);
 
     // =============================================================================================================
     // ======= PROJECTS ============================================================================================        
@@ -325,7 +324,7 @@ function initialize() {
             // editor, plugins, and bundle must be built in order
             () => buildProjectGroup(buildConfig.projectGroups.editor),
             () => buildProjectGroup(buildConfig.projectGroups.plugins),
-            () => createBundle(buildConfig.aggregateBundles.duality),
+            () => createBundle(buildConfig.aggregateBundles.duality, buildConfig),
 
             // Tests and samples can be built in parallel
             () => bu.runParallel([
