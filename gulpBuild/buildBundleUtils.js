@@ -28,16 +28,20 @@ var bundleUtils = {
             for (var projectId in projectGroup.projects) {
                 var project = projectGroup.projects[projectId];
 
+                // Associate the Project with the ProjectGroup
+                project.projectGroup = projectGroup;
+
                 if (!project.name)
                     project.name = projectId;
 
                 // All projects must specify a path
                 if (!project.path)
                     throw Error(project.name + " must specify project.path");
-
-                // Associate the Project with the ProjectGroup
-                project.projectGroup = projectGroup;
-
+                
+                // if our ProjectGroup specified a projectRootFolder, then prepend it now
+                if (projectGroup.projectRootFolder)
+                    project.path = bu.joinPath(projectGroup.projectRootFolder, project.path);
+                    
                 // Pass projectDefaults from the ProjectGroup into the Project IF the Project hasn't overridden them
                 if (projectGroup.projectDefaults)
                     for (var projectDefault in projectGroup.projectDefaults)

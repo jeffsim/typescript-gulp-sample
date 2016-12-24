@@ -52,6 +52,11 @@ function initialize() {
     //  extraFilesToBundle:string[] List of files to include in the project bundle.  e.g. preexisting js files.
     //                              Note: this requires that allowJs be set to true in the project's tsconfig.json file
     //                              so that tsc passes them through; otherwise they'll get dropped silently
+    // projectRootFolder?: string   Optional path to root all projects in.  Avoids redundantly specifying path root in
+    //                              project.path.  Note that this field does not apply to paths in other ProjectGroup-
+    //                              level fields such as filesToClean or commonFiles; they remain rooted in the buildenv root.
+    //  filesToClean?: string[]     List of file (globs) to delete when running clean task. NOTE: path is relative to
+    //                              the build env root; unlike filesToClean in projects, where they are relative to project root
     //
     // Structure of Project object:
     //  name: string                Name of the Project.  If unspecified, then the name of the containing object is used
@@ -201,16 +206,20 @@ function initialize() {
             // All other project defaults are fine for this projectgroup's Projects
         },
 
+        // Optionally specify the root folder for all projects in this projectgroup.  note that this value doesn't
+        // impact other projectgroup-level paths (e.g. in filesToPrecopyOnce, which remains rooted in build env root)
+        projectRootFolder: "plugins",
+
         projects: {
             // all of the built-in projects in this project group are fine with the projectDefaults specified above
             debugDualityPlugin: {
-                path: "plugins/duality/debugDualityPlugin",
+                path: "duality/debugDualityPlugin",
             },
             debugDuality2: {
-                path: "plugins/duality/debugPlugin2",
+                path: "duality/debugPlugin2",
             },
             threeJS: {
-                path: "plugins/threeJS",
+                path: "threeJS",
 
                 // This isn't a built-in plugin, so override the projectgroup's aggregateBundle value to stop from
                 // being included in the 'duality-bundle.js' aggregate bundle.
@@ -246,16 +255,20 @@ function initialize() {
             // we don't need to specify typingFilename
         },
 
-        // files to clean at the projectgroup level. NOTE: path is relative to root; unlike filesToCLean in projects,
+        // files to clean at the projectgroup level. NOTE: path is relative to root; unlike filesToClean in projects,
         // where they are relative to project root
         filesToClean: ["tests/all-bundled-tests*.js*"],
 
+        // Optionally specify the root folder for all projects in this projectgroup.  note that this value doesn't
+        // impact other projectgroup-level paths (e.g. in filesToPrecopyOnce, which remains rooted in build env root)
+        projectRootFolder: "tests",
+
         projects: {
             test1: {
-                path: "tests/test1",
+                path: "test1",
             },
             test2: {
-                path: "tests/test2",
+                path: "test2",
             }
         }
     };

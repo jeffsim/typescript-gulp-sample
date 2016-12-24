@@ -38,12 +38,10 @@ var buildConfig = require("./buildConfig");
 bundleUtil.finishInitializingProjects(buildConfig, buildProjectGroup);
 
 // DONE:
-// * replace bld and dist with settings.bldPath and settings.distPath throughout
-//   * Change so that dist, /dist, and ./dist are all valid distPaths. bld too
+// * Add ProjectGroup.projectRootFolder and prepend it into all project paths in init
 //
 // TODO:
 // * Update readme.
-// * Add ProjectGroup.rootFolder and prepend it into all project paths in init
 // * Include example of how to actually include testLibrary in aggregate bundle
 // * Is it possible to now combine buildProject and minifyProject into one?
 // * RELATED - Can I combine minifyAggregateBundledJS and buildAggregateBundledJS?
