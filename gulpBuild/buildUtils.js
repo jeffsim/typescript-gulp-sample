@@ -94,8 +94,8 @@ module.exports = {
 
     // Joins two or more paths together, removing multiple slashes (e.g. path/to//file)
     joinPath: function () {
-         var segments = Array.prototype.slice.call(arguments);
-         return segments.join('/').replace(/\/{2,}/, '/');
+        var segments = Array.prototype.slice.call(arguments);
+        return segments.join('/').replace(/\/{2,}/, '/');
     },
 
     outputFilesInStream: function (taskName) {
@@ -111,8 +111,25 @@ module.exports = {
     },
 
     // outputs a string to the console IFF verboseOutput is true
-    log: function(string) {
+    log: function (string) {
         if (buildSettings.verboseOutput)
             console.log(string);
+    },
+
+    // strip // DEBUGSTART, // DEBUGEND, and everything in-between them
+    stripDebugStartEnd: function () {
+        var bu = this;
+        return through.obj(function (file, enc, callback) {
+            var contents = file.contents.toString();
+
+            // Here's what I want to do, which works:
+            //   var strippedContents = contents.replace(/\/\/ DEBUGSTART([\s\S]*?)\/\/ DEBUGEND/gi, "")
+            // However, I want to specify custom start/end strings in buildSettings, so I can't use regexp literal notation.
+            // So, I use 'new RegExp' instead
+            var re = new RegExp(buildSettings.debugBlockStartText + "([\\s\\S]*?)" + buildSettings.debugBlockEndText, "gi");
+            file.contents = new Buffer(contents.replace(re, ""));
+            this.push(file);
+            return callback();
+        });
     }
 }

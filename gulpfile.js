@@ -37,12 +37,15 @@ var buildConfig = require("./buildConfig");
 bundleUtil.finishInitializingProjects(buildConfig, buildProjectGroup);
 
 // DONE:
+// * bug: do regular build (not rebuild) of simpleApp - "skipping, no files to compile"
+// * Automatically stripping everything between // DEBUGSTART and // DEBUGEND in minifed builds.  Added buildSetting to allow changing.
 //
-// TODO:
+// TODO NEXT:
+// * Only copy to outputFolder if outputFolder is specified.  buildProject and minifyProject
+
+// TODO LATER:
 // * Update readme.
-// * As an example, add callback to edit all files in stream.  remove everything between //debugstart and //debugend for non-debug build.
 // * Remove 'buildConfig, buildProjectGroup' from finishInitializingProjects args
-// * Try to use built-in d.ts flattening rather than dts-generator.  See: https://github.com/Microsoft/TypeScript/issues/2568
 
 // Used to store global info
 var globals = {};
@@ -117,10 +120,9 @@ function buildProject(project) {
         // Write sourcemaps into the folder set by the following gulp.dest call
         .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: "/" }))
 
-        // Copy built project output into project.buildFolder
+        // Copy built project output into project.buildFolder and project.outputFolder
+        // TODO: Only copy to outputFolder if outputFolder is specified
         .pipe(gulp.dest(project.buildFolder))
-
-        // Copy built project to outputFolder as well
         .pipe(gulp.dest(project.outputFolder))
 
         // Output end of task
@@ -139,6 +141,9 @@ function minifyProject(project) {
         // Initialize Sourcemap generation, telling it to load existing sourcemap (from the already-built *-debug.js file(s))
         .pipe(sourcemaps.init({ loadMaps: true }))
 
+        // Strip //debugstart and //debugend and everything in between from -min builds.
+        .pipe(bu.stripDebugStartEnd())
+
         // Rename output to project.minBundleFilename
         .pipe(rename(project.minBundleFilename))
 
@@ -154,8 +159,10 @@ function minifyProject(project) {
             mapSources: (path) => path.substr(1)
         }))
 
-        // Copy built project output into project.buildFolder
+        // Copy built project output into project.buildFolder and project.outputFolder
+        // TODO: Only copy to outputFolder if outputFolder is specified
         .pipe(gulp.dest(project.buildFolder))
+        .pipe(gulp.dest(project.outputFolder))
 
         // Output end of task
         .on("end", () => taskTracker.end())
@@ -473,7 +480,8 @@ function checkCanSkipBuildProject(project) {
 
     // Generate list of files in the project that we should check
     var filesToCheck = [];
-    var globFiles = glob.sync(bu.joinPath(project.path, project.files));
+    var globFiles = [];
+    project.files.forEach((fileGlob) => globFiles = globFiles.concat(glob.sync(fileGlob)));
 
     // If project doesn't have any .ts files (e.g. it only has .js) then nothing to compile.
     // Bit tricky here; project *could* have .d.ts files; if it only has those, then don't compile

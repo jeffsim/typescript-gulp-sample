@@ -11,6 +11,12 @@ var buildSettings = {
         // allowEmptyFolders: true
     },
 
+    // Minified builds can strip debug checks from output js for perf.  To indicate that a block should be stripped,
+    // surround it with the following strings.  grep on DEBUGSTART in this project to see an example
+    // These strings are case insensitive; e.g. "// deBUGstart" would match.
+    debugBlockStartText: "// DEBUGSTART",
+    debugBlockEndText: "// DEBUGEND",
+
     // If true, then don't parallelize tasks.  Not something you would usually set; mostly just useful if you
     // are having build issues and want cleaner output.
     forceSerializedTasks: false,
