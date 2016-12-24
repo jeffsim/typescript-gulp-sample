@@ -19,11 +19,13 @@ module.exports = {
             if (projectGroup.name === undefined)
                 projectGroup.name = projectGroupId;
 
-            for (var project of projectGroup.projects) {
+            for (var projectId in projectGroup.projects) {
+                var project = projectGroup.projects[projectId];
 
-                // All projects must specify a name and path
                 if (!project.name)
-                    throw Error("All projects in " + projectGroupId + " must specify project.name");
+                    project.name = projectId;
+
+                // All projects must specify a path
                 if (!project.path)
                     throw Error(project.name + " must specify project.path");
 

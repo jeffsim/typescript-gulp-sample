@@ -43,7 +43,7 @@ function initialize() {
     //                              so that tsc passes them through; otherwise they'll get dropped silently
     //
     // Structure of Project object:
-    //  name: string                Name of the Project
+    //  name: string                Name of the Project.  If unspecified, then the name of the containing object is used
     //  path: string                Path of the Project relative to root
     //  files: string[]             List of files to compile; relative to project path.
     //                              If unspecified, defaults to '["**/*.ts"]', which == all TS files in the project folder.
@@ -162,21 +162,23 @@ function initialize() {
         editor: {
             name: "Editor",
 
-            projects: [{
-                // Name of the project.  Used in generating filenames
-                name: "editor",
+            projects: {
+                editor: {
+                    // Name of the project.  Used in generating filenames.  If unspecified, uses the containing object name.
+                    name: "editor",
 
-                // Root folder of the project
-                path: "editor",
+                    // Root folder of the project
+                    path: "editor",
 
-                // Add this project's compiled files to the duality bundle
-                aggregateBundle: buildConfig.aggregateBundles.duality,
+                    // Add this project's compiled files to the duality bundle
+                    aggregateBundle: buildConfig.aggregateBundles.duality,
 
-                // By not specifying files, "**/*.ts" is used by default
+                    // By not specifying files, "**/*.ts" is used by default
 
-                // generate a d.ts file for this project
-                generateTyping: true
-            }]
+                    // generate a d.ts file for this project
+                    generateTyping: true
+                }
+            }
         },
 
         // Defines all of the plugins that are built
@@ -205,35 +207,25 @@ function initialize() {
                 // All other project defaults are fine for this projectgroup's Projects
             },
 
-            // If we just wanted to include all plugins into a single bundled file, we'd add something like this:
-            /*
-            bundleProjectsTogether: {
-                outputFolder: "dist/plugins",
-                debugFilename: "all-bundled-plugins-debug.js",
-                minFilename: "all-bundled-plugins-min.js",
-                generateTyping: true,
-                typingFilename: "all-bundled-plugins.d.ts"
-            },
-            */
-
-            projects: [{
-                name: "debugDualityPlugin",
-                path: "plugins/duality/debugDualityPlugin",
+            projects: {
                 // all of the built-in projects in this project group are fine with the projectDefaults specified above
-            }, {
-                name: "debugDuality2",
-                path: "plugins/duality/debugPlugin2",
-            }, {
-                name: "threeJS",
-                path: "plugins/threeJS",
+                debugDualityPlugin: {
+                    path: "plugins/duality/debugDualityPlugin",
+                },
+                debugDuality2: {
+                    path: "plugins/duality/debugPlugin2",
+                },
+                threeJS: {
+                    path: "plugins/threeJS",
 
-                // This isn't a built-in plugin, so override the projectgroup's aggregateBundle value to stop from
-                // being included in the 'duality-bundle.js' aggregate bundle.
-                aggregateBundle: null,
+                    // This isn't a built-in plugin, so override the projectgroup's aggregateBundle value to stop from
+                    // being included in the 'duality-bundle.js' aggregate bundle.
+                    aggregateBundle: null,
 
-                // This isn't a built-in plugin, but it is distributable, so output to /dist
-                outputFolder: "dist"
-            }]
+                    // This isn't a built-in plugin, but it is distributable, so output to /dist
+                    outputFolder: "dist"
+                }
+            }
         },
 
         // Defines all of the tests that are built
@@ -262,13 +254,14 @@ function initialize() {
             // where they are relative to project root
             filesToClean: ["tests/all-bundled-tests*.js*"],
 
-            projects: [{
-                name: "test1",
-                path: "tests/test1",
-            }, {
-                name: "test2",
-                path: "tests/test2",
-            }]
+            projects: {
+                test1: {
+                    path: "tests/test1",
+                },
+                test2: {
+                    path: "tests/test2",
+                }
+            }
         },
 
         // Defines all of the samples that are built
@@ -282,25 +275,25 @@ function initialize() {
                 buildRootFolder: "./"
             },
 
-            projects: [{
-                name: "testApp",
-                path: "samples/testApp",
+            projects: {
+                testApp: {
+                    path: "samples/testApp",
+                },
+                testApp2: {
+                    path: "samples/testApp2",
+                    filesToPrecopy: [
+                        // This test uses the threeJS plugin that we build, so copy the .js into ./lib and the d.ts into ./typings
+                        { src: "bld/plugins/threeJS/typings/threejs.d.ts", dest: "typings" },
+                        { src: "bld/plugins/threeJS/*", dest: "lib" }],
 
-            }, {
-                name: "testApp2",
-                path: "samples/testApp2",
-                filesToPrecopy: [
-                    // This test uses the threeJS plugin that we build, so copy the .js into ./lib and the d.ts into ./typings
-                    { src: "bld/plugins/threeJS/typings/threejs.d.ts", dest: "typings" },
-                    { src: "bld/plugins/threeJS/*", dest: "lib" }],
+                    // Add testJS.js to the bundle so that it doesn't have to be explicitly included
+                    extraFilesToBundle: ["testJS.js"],
 
-                // Add testJS.js to the bundle so that it doesn't have to be explicitly included
-                extraFilesToBundle: ["testJS.js"],
-
-                // This sample has javascript files in it that already exist, so we can't simply clean '**/*.js' - 
-                // specify the set of filesToClean.
-                filesToClean: ["testApp2*.js", "testApp2plugin/*.js", "lib/threeJS*"],
-            }]
+                    // This sample has javascript files in it that already exist, so we can't simply clean '**/*.js' - 
+                    // specify the set of filesToClean.
+                    filesToClean: ["testApp2*.js", "testApp2plugin/*.js", "lib/threeJS*"],
+                }
+            }
         }
     };
 

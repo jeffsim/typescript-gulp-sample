@@ -28,27 +28,27 @@ var bundleUtil = require("./buildBundleUtils");
 var buildConfig = require("./buildConfig");
 
 // Use the following buildConfig instead to play with the simpler buildConfig 
-//var buildConfig = require("./moreExampleBuildEnvs/simpleLibraryAndApp/buildConfig");
+// var buildConfig = require("./moreExampleBuildEnvs/simpleLibraryAndApp/buildConfig");
 
 // Finish initializing (populate default values) and return the constructed build configuration
 bundleUtil.finishInitializingProjects(buildConfig);
 
-// NEXT CHECKIN:
-// * Given changes, update readme.
-// * Update buildCOnfig.js to use dependsOn
+// TODO:
+// * Update readme.
+// * Update buildConfig.js to use dependsOn
 // * replace bld and dist with settings.bldPath and settings.distPath throughout
 //   * Change so that dist, /dist, and ./dist are all valid distPaths. bld too
 // * Update joinPath to use join-path-js.  Use it on line 245 & others.
 // * move buildUtils.js et al into /gulpBuild?
-// * Create multiple simple example samples under a 'moreSamples' folder
 // * if buildAll isn't specified, then build a dependency tree between projects using dependsOn and use that to define default build order
 //      then, remove buildAll from simpleLibraryAndApp
-
+// * Add ProjectGroup.rootFolder and prepend it into all project paths in init
+// * Include example of how to actually include testLibrary in aggregate bundle
 // * Is it possible to now combine buildProject and minifyProject into one?
 // * RELATED - Can I combine minifyAggregateBundledJS and buildAggregateBundledJS?
 // * add callback to edit all files.  remove everything between //debugstart and //debugend for non-debug build.
 // * Make gulpfile watch itself.  https://codepen.io/ScavaJripter/post/how-to-watch-the-same-gulpfile-js-with-gulp
-// * Outputting '/// reference' in duality.d.ts.
+// * Fix: Outputting '/// reference' in duality.d.ts.
 
 // Used to store global info
 var globals = {};
@@ -134,6 +134,10 @@ function buildProject(project) {
 
         // Copy built project output into project.buildFolder
         .pipe(gulp.dest(project.buildFolder))
+
+        // Copy built project to outputFolder as well
+        // TODO: Not convinced I need to do this yet. But: relatively harmless
+        .pipe(gulp.dest(project.outputFolder))
 
         // Output end of task
         .on("end", () => taskTracker.end());
@@ -228,9 +232,11 @@ function createAggregateBundle(bundle) {
 function buildAggregateBundledJS(bundle) {
     var sourceFiles = [];
     for (var projectGroup in buildConfig.projectGroups)
-        for (var project of buildConfig.projectGroups[projectGroup].projects)
+        for (var projectId in buildConfig.projectGroups[projectGroup].projects) {
+            var project = buildConfig.projectGroups[projectGroup].projects[projectId];
             if (project.aggregateBundle == bundle)
                 sourceFiles.push(bu.joinPath(project.buildFolder, project.debugBundleFilename));
+        }
     return buildAggregateBundle(bundle, sourceFiles, false, "Build bundled JS", bundle.outputFolder);
 }
 
@@ -243,8 +249,10 @@ function buildProjectGroupBundle(projectGroup) {
 
     // Create list of source files for bundle.js; it's the list of bundle files built for the projects in the project group
     var sourceFiles = [];
-    for (var project of projectGroup.projects)
+    for (var projectId in projectGroup.projects) {
+        var project = projectGroup.projects[projectId];
         sourceFiles.push(project.buildFolder + "/" + project.debugBundleFilename);
+    }
 
     return bu.runSeries([
         () => buildAggregateBundle(projectGroup.bundleProjectsTogether, sourceFiles, false, "Build project group bundle (" + projectGroup.name + ")", projectGroup.bundleProjectsTogether.outputFolder),
@@ -254,9 +262,11 @@ function buildProjectGroupBundle(projectGroup) {
                 return bu.getCompletedStream();
             // Create list of typing files we'll bundle
             var typingFiles = [];
-            for (var project of projectGroup.projects)
+            for (var projectId in projectGroup.projects) {
+                var project = projectGroup.projects[projectId];
                 if (project.generateTyping)
                     typingFiles.push(project.buildFolder + "/typings/" + project.typingBundleFilename);
+            }
 
             return gulp.src(typingFiles)
                 .pipe(concat(projectGroup.bundleProjectsTogether.typingFilename))
@@ -302,10 +312,11 @@ function buildAggregateBundledDTS(bundle) {
     var taskTracker = new TaskTracker("Build bundled DTS");
     var files = [];
     for (var projectGroup in buildConfig.projectGroups)
-        for (var project of buildConfig.projectGroups[projectGroup].projects)
+        for (var projectId in buildConfig.projectGroups[projectGroup].projects) {
+            var project = buildConfig.projectGroups[projectGroup].projects[projectId];
             if (project.aggregateBundle == bundle)
                 files.push(bu.joinPath(project.buildFolder + "/typings", project.name + ".d.ts"));
-
+        }
     return gulp.src(files)
         .pipe(concat(bundle.typingFilename))
         .pipe(gulp.dest(bu.joinPath(buildSettings.distPath, "typings")))
@@ -348,7 +359,8 @@ function clean() {
         }
 
         // delete filesToClean in this projectgroup's Projects
-        for (var project of projectGroup.projects) {
+        for (var projectId in projectGroup.projects) {
+            var project = projectGroup.projects[projectId];
             if (project.filesToClean) {
                 for (var fileToClean of project.filesToClean)
                     filesToDelete.push(bu.joinPath(project.path, fileToClean))
@@ -376,7 +388,9 @@ function precopyRequiredFiles(projectGroup) {
             let file = fileToCopy; // closure
             buildActions.push(() => bu.copyFile(file.src, file.dest));
         }
-    for (var project of projectGroup.projects) {
+    for (var projectId in projectGroup.projects) {
+        var project = projectGroup.projects[projectId];
+
         // Copy files that should be copied to every project in the entire project group
         if (projectGroup.filesToPrecopyToAllProjects)
             for (var fileToCopy of projectGroup.filesToPrecopyToAllProjects) {
@@ -392,16 +406,14 @@ function precopyRequiredFiles(projectGroup) {
             }
 
         // Copy any dependent projects
-        if (project.dependsOn) 
+        if (project.dependsOn)
             for (var dependentProject of project.dependsOn) {
-                let p = project; // closure
-                var libSrc = bu.joinPath(dependentProject.outputFolder, "**/*.js")
-                var libDest = bu.joinPath(p.path, "lib");
-                var typingSrc = bu.joinPath(dependentProject.outputFolder, "typings/*.d.ts")
-                var typingDest = bu.joinPath(p.path, "typings");
+                var libSrc = bu.joinPath(dependentProject.buildFolder, "**/*.js")
+                var libDest = bu.joinPath(project.path, "lib");
+                var typingSrc = bu.joinPath(dependentProject.buildFolder, "typings/*.d.ts")
+                var typingDest = bu.joinPath(project.path, "typings");
                 buildActions.push(() => bu.copyFile(libSrc, libDest));
                 buildActions.push(() => bu.copyFile(typingSrc, typingDest));
-                
             }
     }
     return bu.runParallel(buildActions).on("end", () => taskTracker.end());
@@ -514,9 +526,11 @@ function checkCanSkipBuildBundle(bundle) {
     // current state; if ANY file, then rebuild the bundle
     var filesToCheck = [];
     for (var projectGroup in buildConfig.projectGroups) {
-        for (var project of buildConfig.projectGroups[projectGroup].projects)
+        for (var projectId in buildConfig.projectGroups[projectGroup].projects) {
+            var project = buildConfig.projectGroups[projectGroup].projects[projectId];
             if (project.includeInBundle == bundle)
                 filesToCheck.push("bld/" + project.path + "/" + project.name + "-debug.js");
+        }
     }
     var fileHasChanged = checkForChangedFile(filesToCheck, bundle.modifiedBundleCache);
 
@@ -575,8 +589,8 @@ function buildProjectGroup(projectGroup) {
 // Build a collection of projects
 function buildProjects(projectGroup) {
     var buildActions = [];
-    for (var project of projectGroup.projects) {
-        let p = project; // closure
+    for (var projectId in projectGroup.projects) {
+        let p = projectGroup.projects[projectId]; // closure
         buildActions.push(() => buildAndMinifyProject(p));
     }
     return bu.runParallel(buildActions);
