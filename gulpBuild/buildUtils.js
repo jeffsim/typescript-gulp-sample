@@ -99,6 +99,7 @@ module.exports = {
     },
 
     outputFilesInStream: function (taskName) {
+        var bu = this;
         return through.obj(function (file, enc, callback) {
             // we compile d.ts files, but don't babble about them here.
             if (file.relative.indexOf(".d.ts") == -1)

@@ -283,8 +283,9 @@ function initialize() {
         }],
 
         // project overrides that are applied to all projects in this projectGroup
-        projectDefaults: { // Because I want samples to be more 'standalone', built output goes into the sample folder
-            buildRootFolder: "./"
+        projectDefaults: { 
+            // Because I want samples to be more 'standalone', built output goes into the sample folder
+            buildRootFolder: "."
         },
 
         projects: {
@@ -315,7 +316,7 @@ function initialize() {
     // build function into the config file.  Problem solved, but not prettily...
     //
     // NOTE: This is only required if you have more complex projects to build.  Otherwise, just don't specify a buildAll
-    // function, and gulpfile will simply build all projectgroups in an arbitrary order
+    // function, and gulpfile will simply build all projectgroups using basic dependency checking.
     //
     // And the hackery continues: I'm passing in buildProjectGroup and createBundle because they're defined in the main
     // gulpfile, and I haven't fully split things up.

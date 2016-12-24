@@ -1,17 +1,27 @@
 {
     "compilerOptions": {
         "target": "es5",
-        "experimentalDecorators": true,
-        "emitDecoratorMetadata": true,
+
+        // Generate sourcemaps
         "sourceMap": true,
-        "declaration": false,
+
         "noImplicitAny": false,
         "removeComments": true,
-        "noLib": false,
+        
+        // I'd like to generate .d.ts files automagically with declaration:true, but you can't specify this and allowJs
+        // together (yet; as of 12/16).  Reference: https://github.com/Microsoft/TypeScript/issues/7546
+        "declaration": false,
+        
+        // outFile handles bundling all the transpiled .js files for us.  It uses /// reference tags in the files to
+        // ensure proper ordering.  We'll rename the output based on the buildConfig.
         "outFile": "willGetRenamedAnyways.js",
+
+        // Specify this to allow prebuilt js files to be included in the output bundle.  Convenient when including js
+        // files and you dont want to have to explicitly include them in your html.  I don't strictly need it for the 
+        // example 'editor' project here, but setting it to surface and track related issue with declaration above.
         "allowJs": true,
-        "preserveConstEnums": true,
-        "suppressImplicitAnyIndexErrors": true,
+
+        // Speeds up compile perf
         "skipLibCheck": true
     }
 }

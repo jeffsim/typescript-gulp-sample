@@ -34,19 +34,15 @@ var buildConfig = require("./buildConfig");
 // var buildConfig = require("./moreExampleBuildEnvs/programmaticBuildConfig/buildConfig");
 
 // Finish initializing the build configuration by populating default ProjectGroup and Project values.
-// TODO: Remove 'buildConfig, buildProjectGroup' from args
 bundleUtil.finishInitializingProjects(buildConfig, buildProjectGroup);
 
 // DONE:
-// * Add ProjectGroup.projectRootFolder and prepend it into all project paths in init
 //
 // TODO:
 // * Update readme.
-// * Include example of how to actually include testLibrary in aggregate bundle
-// * Is it possible to now combine buildProject and minifyProject into one?
-// * RELATED - Can I combine minifyAggregateBundledJS and buildAggregateBundledJS?
 // * As an example, add callback to edit all files in stream.  remove everything between //debugstart and //debugend for non-debug build.
-// * Fix: Outputting '/// reference' in duality.d.ts.
+// * Remove 'buildConfig, buildProjectGroup' from finishInitializingProjects args
+// * Try to use built-in d.ts flattening rather than dts-generator.  See: https://github.com/Microsoft/TypeScript/issues/2568
 
 // Used to store global info
 var globals = {};
@@ -166,8 +162,6 @@ function minifyProject(project) {
 }
 
 // Generates .d.ts definition file for a single project
-// NOTE: 'declaration:true' in tsconfig.json doesn't support flattening into a single d.ts file, so using this instead.
-// Ideally would use the built-in version, but can't yet.  See: https://github.com/Microsoft/TypeScript/issues/2568
 function buildDefinitionFile(project) {
 
     // Only generate d.ts files if so desired
@@ -250,7 +244,7 @@ function buildProjectGroupBundle(projectGroup) {
         () => {
             if (!projectGroup.bundleProjectsTogether.generateTyping)
                 return bu.getCompletedStream();
-                
+
             // Create list of typing files we'll bundle
             var typingFiles = [];
             for (var projectId in projectGroup.projects) {
