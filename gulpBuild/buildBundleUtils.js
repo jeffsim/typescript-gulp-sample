@@ -153,6 +153,7 @@ var bundleUtils = {
 function finishInitializingBundle(bundle, project) {
     if (bundle.initialized)
         return bundle;
+        
     // Bundle's base name is either defined, or is == containing project's name (if any)
     var bundleNameVer = bundle.name || project.name;
     if (!bundleNameVer)
@@ -173,6 +174,9 @@ function finishInitializingBundle(bundle, project) {
     bundle.debugFilename = bundle.debugFilename || (bundleNameVer + ".debug.js");
     bundle.minFilename = bundle.minFilename || (bundleNameVer + ".min.js");
     bundle.typingFilename = bundle.typingFilename || (bundleNameVer + ".d.ts");
+
+    // Initialize the incremental project build cache which tracks last-changed times
+    bundle.modifiedBundleCache = {};
 
     bundle.initialized = true;
     return bundle;

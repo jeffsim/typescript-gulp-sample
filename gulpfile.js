@@ -15,19 +15,32 @@ var concat = require("gulp-concat"),
     uglify = require("gulp-uglify");
 
 // Load build support files
-var buildSettings = require("./gulpBuild/buildSettings");
-var bu = require("./gulpBuild/buildUtils");
-var bundleUtil = require("./gulpBuild/buildBundleUtils");
+var bu = require("./gulpBuild/buildUtils"),
+    buildSettings = require("./gulpBuild/buildSettings"),
+    bundleUtil = require("./gulpBuild/buildBundleUtils");
 
-// ====================================================================================================================
-// Load the build configuration.  This defines the ProjectGroups and Projects which will be built, and also defines
-// the primary 'buildAll' function (which needs to happen in the buildConfig file to allow it to define build order).
-// Also load build settings
+// DONE:
+//
+// TODO NEXT:
+// * Update readme.
+//
+// TODO LATER:
+// * Remove 'buildConfig, buildProjectGroup' from finishInitializingProjects args
 
-// ** This is the only files that you should have to modify for your projects! **
+
+
+// ************************************************************************************************
+// ************************************************************************************************
+// **                                                                                            **
+// **     buildConfig.js is the only files that you should have to modify for your projects!     **
+// **                                                                                            **
+// ************************************************************************************************
+// ************************************************************************************************
+
+// Load the build configuration.  This defines the ProjectGroups and Projects which will be built
 var buildConfig = require("./buildConfig");
 
-// Use the following buildConfigs instead to play with other buildConfigs
+// Comment out the above and use the following buildConfigs instead to play with other buildConfigs
 // NOTE: Building these does not result in executable apps (e.g. no index.html); they instead show build process.
 // var buildConfig = require("./moreExampleBuildEnvs/simpleApp/buildConfig");
 // var buildConfig = require("./moreExampleBuildEnvs/simpleLibraryAndApp/buildConfig");
@@ -36,16 +49,6 @@ var buildConfig = require("./buildConfig");
 // Finish initializing the build configuration by populating default ProjectGroup and Project values.
 bundleUtil.finishInitializingProjects(buildConfig, buildProjectGroup);
 
-// DONE:
-// * bug: do regular build (not rebuild) of simpleApp - "skipping, no files to compile"
-// * Automatically stripping everything between // DEBUGSTART and // DEBUGEND in minifed builds.  Added buildSetting to allow changing.
-//
-// TODO NEXT:
-// * Only copy to outputFolder if outputFolder is specified.  buildProject and minifyProject
-
-// TODO LATER:
-// * Update readme.
-// * Remove 'buildConfig, buildProjectGroup' from finishInitializingProjects args
 
 // Used to store global info
 var globals = {};
@@ -120,8 +123,7 @@ function buildProject(project) {
         // Write sourcemaps into the folder set by the following gulp.dest call
         .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: "/" }))
 
-        // Copy built project output into project.buildFolder and project.outputFolder
-        // TODO: Only copy to outputFolder if outputFolder is specified
+        // Copy built project output into project.buildFolder and, if outputFolder is specified, to project.outputFolder
         .pipe(gulp.dest(project.buildFolder))
         .pipe(gulp.dest(project.outputFolder))
 
@@ -159,8 +161,7 @@ function minifyProject(project) {
             mapSources: (path) => path.substr(1)
         }))
 
-        // Copy built project output into project.buildFolder and project.outputFolder
-        // TODO: Only copy to outputFolder if outputFolder is specified
+        // Copy built project output into project.buildFolder and, if outputFolder is specified, to project.outputFolder
         .pipe(gulp.dest(project.buildFolder))
         .pipe(gulp.dest(project.outputFolder))
 
@@ -518,12 +519,12 @@ function checkCanSkipBuildBundle(bundle) {
         return null;
 
     // If here, then bundle has been previously built, and bundle.modifiedBundleCache contains info.  Compare against
-    // current state; if ANY file, then rebuild the bundle
+    // current state; if ANY file has changed, then rebuild the bundle
     var filesToCheck = [];
     for (var projectGroup in buildConfig.projectGroups) {
         for (var projectId in buildConfig.projectGroups[projectGroup].projects) {
             var project = buildConfig.projectGroups[projectGroup].projects[projectId];
-            if (project.includeInBundle == bundle)
+            if (project.aggregateBundle == bundle)
                 filesToCheck.push(bu.joinPath(buildSettings.bldPath, project.path, project.name + "-debug.js"));
         }
     }
