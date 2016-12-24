@@ -1,7 +1,7 @@
 var buildSettings = require("./buildSettings");
 var bu = require("./buildUtils");
 
-module.exports = {
+var bundleUtils = {
     finishInitializingBundles: function (buildConfig) {
 
         // Generate Aggregate Bundles' output file names; these include version stamp if specified.  We need to do
@@ -13,7 +13,7 @@ module.exports = {
     },
 
 
-    finishInitializingProjects: function (buildConfig) {
+    finishInitializingProjects: function (buildConfig, buildProjectGroup) {
         for (var projectGroupId in buildConfig.projectGroups) {
             var projectGroup = buildConfig.projectGroups[projectGroupId];
             if (projectGroup.name === undefined)
@@ -75,8 +75,46 @@ module.exports = {
             }
         }
 
+        // IF the buildConfig doesn't have a buildAll function defined, then create one now based around dependenies
+        if (!buildConfig.buildAll)
+            bundleUtils.buildProjectDependencyGraph(buildConfig, buildProjectGroup);
+
         // Return the config to enable chaining
         return buildConfig;
+    },
+
+
+    // build dependency graph of ProjectGroups within the specified buildConfig. Uses basic depth-first topo sort and
+    // compares 'project.dependsOn: object[]' values
+    // NOTE: This function is not heavily tested.  If dependency graph isn't working for you, then skip this by defining
+    // your own buildConfig.buildAll() which sets order explicitly; see the main buildConfig in this sample env for example
+    buildProjectDependencyGraph: function (buildConfig, buildProjectGroup) {
+        var state = { exploring: 1, placed: 2 };
+        var buildSlots = [];
+        for (var projectGroupId in buildConfig.projectGroups)
+            exploreProjectGroup(buildConfig.projectGroups[projectGroupId]);
+
+        function exploreProjectGroup(projectGroup) {
+            if (projectGroup.state == state.exploring)
+                throw new Error("Circular dependency!");
+
+            if (projectGroup.state != state.placed) {
+                projectGroup.state = state.exploring;
+                for (var projectId in projectGroup.projects) {
+                    let project = projectGroup.projects[projectId];
+                    if (project.dependsOn)
+                        for (var dependentProject of project.dependsOn)
+                            exploreProjectGroup(dependentProject.projectGroup);
+                }
+                projectGroup.state = state.placed;
+                buildSlots.push(projectGroup)
+            }
+        }
+
+        // Create the buildAll function on buildConfig with the proper order here.
+        buildConfig.buildAll = function (buildProjectGroup, createBundle) {
+            return bu.runSeries(buildSlots);
+        }
     }
 }
 
@@ -105,3 +143,5 @@ function finishInitializingBundle(bundle, project) {
     bundle.initialized = true;
     return bundle;
 };
+
+module.exports = bundleUtils;

@@ -1,5 +1,3 @@
-var bu = require("../../buildUtils");
-
 var buildConfig = {
     projectGroups: {
         // Define the build config for the example library which will be referenced by the example app below.
@@ -25,12 +23,4 @@ buildConfig.projectGroups.testApp = {
     }
 }
 
-// buildAll needs to be specified because order of objects in a JS object is not (as of today) gauranteed to be the same.
-// TODO: This will go away once I build a dependency tree using project.dependsOn.
-buildConfig.buildAll = function (buildProjectGroup, createBundle) {
-    return bu.runSeries([
-        () => buildProjectGroup(buildConfig.projectGroups.testLibrary),
-        () => buildProjectGroup(buildConfig.projectGroups.testApp)
-    ]);
-}
 module.exports = buildConfig;

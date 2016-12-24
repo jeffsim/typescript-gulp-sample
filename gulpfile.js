@@ -25,13 +25,14 @@ var bundleUtil = require("./buildBundleUtils");
 // Also load build settings
 
 // ** This is the only files that you should have to modify for your projects! **
-var buildConfig = require("./buildConfig");
+// var buildConfig = require("./buildConfig");
 
 // Use the following buildConfig instead to play with the simpler buildConfig 
-// var buildConfig = require("./moreExampleBuildEnvs/simpleLibraryAndApp/buildConfig");
+var buildConfig = require("./moreExampleBuildEnvs/simpleLibraryAndApp/buildConfig");
 
 // Finish initializing (populate default values) and return the constructed build configuration
-bundleUtil.finishInitializingProjects(buildConfig);
+// TODO: Remove 'buildProjectGroup' from args
+bundleUtil.finishInitializingProjects(buildConfig, buildProjectGroup);
 
 // TODO:
 // * Update readme.
@@ -40,8 +41,6 @@ bundleUtil.finishInitializingProjects(buildConfig);
 //   * Change so that dist, /dist, and ./dist are all valid distPaths. bld too
 // * Update joinPath to use join-path-js.  Use it on line 245 & others.
 // * move buildUtils.js et al into /gulpBuild?
-// * if buildAll isn't specified, then build a dependency tree between projects using dependsOn and use that to define default build order
-//      then, remove buildAll from simpleLibraryAndApp
 // * Add ProjectGroup.rootFolder and prepend it into all project paths in init
 // * Include example of how to actually include testLibrary in aggregate bundle
 // * Is it possible to now combine buildProject and minifyProject into one?
