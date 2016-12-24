@@ -1,5 +1,5 @@
-var bu = require("./buildUtils");
-var bundleUtil = require("./buildBundleUtils");
+var bu = require("./gulpBuild/buildUtils");
+var bundleUtil = require("./gulpBuild/buildBundleUtils");
 
 function initialize() {
     var buildConfig = {};
@@ -157,145 +157,141 @@ function initialize() {
 
     // =============================================================================================================
     // ======= PROJECTS ============================================================================================        
-    buildConfig.projectGroups = {
-        // Defines the main editor project group
-        editor: {
-            name: "Editor",
+    buildConfig.projectGroups = {};
+    // Defines the main editor project group
+    buildConfig.projectGroups.editor = {
 
-            projects: {
-                editor: {
-                    // Name of the project.  Used in generating filenames.  If unspecified, uses the containing object name.
-                    name: "editor",
+        projects: {
+            editor: {
+                // Name of the project.  Used in generating filenames.  If unspecified, uses the containing object name.
+                name: "editor",
 
-                    // Root folder of the project
-                    path: "editor",
+                // Root folder of the project
+                path: "editor",
 
-                    // Add this project's compiled files to the duality bundle
-                    aggregateBundle: buildConfig.aggregateBundles.duality,
-
-                    // By not specifying files, "**/*.ts" is used by default
-
-                    // generate a d.ts file for this project
-                    generateTyping: true
-                }
-            }
-        },
-
-        // Defines all of the plugins that are built
-        plugins: {
-            name: "Plugins",
-
-            // All projects in this group have these files copied into their sample folders.  Built files from
-            // previous projects in this build env typically go here.
-            filesToPrecopyToAllProjects: [{ src: "bld/editor/typings/editor.d.ts", dest: "typings" }],
-
-            // project overrides that are applied to all projects in this projectGroup
-            projectDefaults: {
-                // plugins are used by other projects, so generate d.ts files
-                generateTyping: true,
-
-                // Specify the aggregate bundle into which the projects in this ProjectGroup should by-default be included
-                // We override this in non-built-in plugins below to not include them in the aggregate bundle.  We can also
-                // flip the logic and not specify an aggregate bundle at the projectgroup level but then specify for the
-                // built-in plugins.  Either way works; depends on which will be more common (in this case, built-in is
-                // more common so we do it at the projectgroup level).
+                // Add this project's compiled files to the duality bundle
                 aggregateBundle: buildConfig.aggregateBundles.duality,
 
-                // plugins are used by other projects, but built-in plugins will get aggregated into the distributed
-                // bundle, so no need to output them to /dist.  non-built-in plugins will however need to set this
+                // By not specifying files, "**/*.ts" is used by default
 
-                // All other project defaults are fine for this projectgroup's Projects
-            },
-
-            projects: {
-                // all of the built-in projects in this project group are fine with the projectDefaults specified above
-                debugDualityPlugin: {
-                    path: "plugins/duality/debugDualityPlugin",
-                },
-                debugDuality2: {
-                    path: "plugins/duality/debugPlugin2",
-                },
-                threeJS: {
-                    path: "plugins/threeJS",
-
-                    // This isn't a built-in plugin, so override the projectgroup's aggregateBundle value to stop from
-                    // being included in the 'duality-bundle.js' aggregate bundle.
-                    aggregateBundle: null,
-
-                    // This isn't a built-in plugin, but it is distributable, so output to /dist
-                    outputFolder: "dist"
-                }
-            }
-        },
-
-        // Defines all of the tests that are built
-        tests: {
-            name: "Tests",
-
-            // All projects in the 'tests' ProjectGroup use the same config file, so specify it here
-            tsConfigFile: "tests/tsconfig.json",
-
-            // All projects in this ProjectGroup include in compilation the d.ts files found in /tests/typings
-            commonFiles: ["tests/typings/*.d.ts"],
-
-            // All projects in this ProjectGroup use the same duality*.d.ts file, so copy it into /tests/typings
-            filesToPrecopyOnce: [{ src: "dist/typings/" + buildConfig.aggregateBundles.duality.typingFilename, dest: "tests/typings" }],
-
-            // we opt to combine all tests into a single bundle so that they can be loaded with minimal network load.
-            bundleProjectsTogether: {
-                outputFolder: "tests",
-                debugFilename: "all-bundled-tests-debug.spec.js",
-                minFilename: "all-bundled-tests-min.spec.js",
-                // we don't generate typings for tests, so the default value for generateTyping (false) is fine and
-                // we don't need to specify typingFilename
-            },
-
-            // files to clean at the projectgroup level. NOTE: path is relative to root; unlike filesToCLean in projects,
-            // where they are relative to project root
-            filesToClean: ["tests/all-bundled-tests*.js*"],
-
-            projects: {
-                test1: {
-                    path: "tests/test1",
-                },
-                test2: {
-                    path: "tests/test2",
-                }
-            }
-        },
-
-        // Defines all of the samples that are built
-        samples: {
-            name: "Samples",
-            // All projects in this group have these files copied into their sample folders.  Built files typically go here.
-            filesToPrecopyToAllProjects: [{ src: "dist/typings/" + buildConfig.aggregateBundles.duality.typingFilename, dest: "typings" }],
-
-            // project overrides that are applied to all projects in this projectGroup
-            projectDefaults: { // Because I want samples to be more 'standalone', built output goes into the sample folder
-                buildRootFolder: "./"
-            },
-
-            projects: {
-                testApp: {
-                    path: "samples/testApp",
-                },
-                testApp2: {
-                    path: "samples/testApp2",
-                    filesToPrecopy: [
-                        // This test uses the threeJS plugin that we build, so copy the .js into ./lib and the d.ts into ./typings
-                        { src: "bld/plugins/threeJS/typings/threejs.d.ts", dest: "typings" },
-                        { src: "bld/plugins/threeJS/*", dest: "lib" }],
-
-                    // Add testJS.js to the bundle so that it doesn't have to be explicitly included
-                    extraFilesToBundle: ["testJS.js"],
-
-                    // This sample has javascript files in it that already exist, so we can't simply clean '**/*.js' - 
-                    // specify the set of filesToClean.
-                    filesToClean: ["testApp2*.js", "testApp2plugin/*.js", "lib/threeJS*"],
-                }
+                // generate a d.ts file for this project
+                generateTyping: true
             }
         }
     };
+
+    // Defines all of the plugins that are built
+    buildConfig.projectGroups.plugins = {
+
+        // All projects in this group have these files copied into their sample folders.  Built files from
+        // previous projects in this build env typically go here.
+        filesToPrecopyToAllProjects: [{ src: "bld/editor/typings/editor.d.ts", dest: "typings" }],
+
+        // project overrides that are applied to all projects in this projectGroup
+        projectDefaults: {
+            // plugins are used by other projects, so generate d.ts files
+            generateTyping: true,
+
+            // Specify the aggregate bundle into which the projects in this ProjectGroup should by-default be included
+            // We override this in non-built-in plugins below to not include them in the aggregate bundle.  We can also
+            // flip the logic and not specify an aggregate bundle at the projectgroup level but then specify for the
+            // built-in plugins.  Either way works; depends on which will be more common (in this case, built-in is
+            // more common so we do it at the projectgroup level).
+            aggregateBundle: buildConfig.aggregateBundles.duality,
+
+            // plugins are used by other projects, but built-in plugins will get aggregated into the distributed
+            // bundle, so no need to output them to /dist.  non-built-in plugins will however need to set this
+
+            // All other project defaults are fine for this projectgroup's Projects
+        },
+
+        projects: {
+            // all of the built-in projects in this project group are fine with the projectDefaults specified above
+            debugDualityPlugin: {
+                path: "plugins/duality/debugDualityPlugin",
+            },
+            debugDuality2: {
+                path: "plugins/duality/debugPlugin2",
+            },
+            threeJS: {
+                path: "plugins/threeJS",
+
+                // This isn't a built-in plugin, so override the projectgroup's aggregateBundle value to stop from
+                // being included in the 'duality-bundle.js' aggregate bundle.
+                aggregateBundle: null,
+
+                // This isn't a built-in plugin, but it is distributable, so output to /dist
+                outputFolder: "dist"
+            }
+        }
+    };
+
+    // Defines all of the tests that are built
+    buildConfig.projectGroups.tests = {
+
+        // All projects in the 'tests' ProjectGroup use the same config file, so specify it here
+        tsConfigFile: "tests/tsconfig.json",
+
+        // All projects in this ProjectGroup include in compilation the d.ts files found in /tests/typings
+        commonFiles: ["tests/typings/*.d.ts"],
+
+        // All projects in this ProjectGroup use the same duality*.d.ts file, so copy it into /tests/typings
+        filesToPrecopyOnce: [{ src: "dist/typings/" + buildConfig.aggregateBundles.duality.typingFilename, dest: "tests/typings" }],
+
+        // we opt to combine all tests into a single bundle so that they can be loaded with minimal network load.
+        bundleProjectsTogether: {
+            outputFolder: "tests",
+            debugFilename: "all-bundled-tests-debug.spec.js",
+            minFilename: "all-bundled-tests-min.spec.js",
+            // we don't generate typings for tests, so the default value for generateTyping (false) is fine and
+            // we don't need to specify typingFilename
+        },
+
+        // files to clean at the projectgroup level. NOTE: path is relative to root; unlike filesToCLean in projects,
+        // where they are relative to project root
+        filesToClean: ["tests/all-bundled-tests*.js*"],
+
+        projects: {
+            test1: {
+                path: "tests/test1",
+            },
+            test2: {
+                path: "tests/test2",
+            }
+        }
+    };
+
+    // Defines all of the samples that are built
+    buildConfig.projectGroups.samples = {
+
+        // All projects in this group have these files copied into their sample folders.  Built files typically go here.
+        filesToPrecopyToAllProjects: [{ src: "dist/typings/" + buildConfig.aggregateBundles.duality.typingFilename, dest: "typings" }],
+
+        // project overrides that are applied to all projects in this projectGroup
+        projectDefaults: { // Because I want samples to be more 'standalone', built output goes into the sample folder
+            buildRootFolder: "./"
+        },
+
+        projects: {
+            testApp: {
+                path: "samples/testApp",
+            },
+            testApp2: {
+                path: "samples/testApp2",
+
+                // This test uses the threeJS plugin that we build, so add a dependsOn reference so that the plugin's
+                // built .js and .d.ts files get copied over to this project's folder
+                dependsOn: [buildConfig.projectGroups.plugins.projects.threeJS],
+
+                // Add testJS.js to the bundle so that it doesn't have to be explicitly included by index.html
+                extraFilesToBundle: ["testJS.js"],
+
+                // This sample has javascript files in it that already exist, so we can't simply clean '**/*.js' - 
+                // specify the set of filesToClean.
+                filesToClean: ["testApp2*.js", "testApp2plugin/*.js", "lib/threeJS*"],
+            }
+        }
+    }
 
     // Main build function; builds editor, plugins, tests, and samples; also bundles editor and plugins into duality*.js
     // NOTE: This is here because I want gulpfile.js to be project-indepedent, but build order is specified to the project;

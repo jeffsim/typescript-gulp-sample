@@ -1,4 +1,5 @@
 var eventStream = require("event-stream"),
+    fs = require("fs"),
     gulp = require("gulp"),
     gulpIf = require("gulp-if"),
     preservetime = require("gulp-preservetime"),
@@ -69,21 +70,44 @@ module.exports = {
             .pipe(gulpIf(buildSettings.incrementalBuild, preservetime()));
     },
 
-    // Joins two paths together, removing multiple slashes (e.g. path/to//file)
-    joinPath: function (path, file) {
-        return (path + '/' + file).replace(/\/{2,}/, '/');
+    // basic assert function
+    assert: function (check, string) {
+        if (!check)
+            throw new Error(string);
     },
-    
+
+    // Returns true if a file exists; false otherwise.
+    fileExists: function (fullPath) {
+        try {
+            return fs.statSync(fullPath).isFile();
+        }
+        catch (e) {
+            if (e.code != 'ENOENT')
+                throw e;
+            return false;
+        }
+    },
+
+    // Joins two or more paths together, removing multiple slashes (e.g. path/to//file)
+    joinPath: function () {
+         var segments = Array.prototype.slice.call(arguments);
+         return segments.join('/').replace(/\/{2,}/, '/');
+    },
+
     outputFilesInStream: function (taskName) {
         return through.obj(function (file, enc, callback) {
-            if (buildSettings.verboseOutput) {
-                // we compile d.ts files, but don't babble about them here.
-                if (file.relative.indexOf(".d.ts") == -1)
-                    console.log("[" + taskName + "]: File in stream: " + file.relative);
-            }
+            // we compile d.ts files, but don't babble about them here.
+            if (file.relative.indexOf(".d.ts") == -1)
+                bu.log("[" + taskName + "]: File in stream: " + file.relative);
 
             this.push(file);
             return callback();
         });
+    },
+
+    // outputs a string to the console IFF verboseOutput is true
+    log: function(string) {
+        if (buildSettings.verboseOutput)
+            console.log(string);
     }
 }

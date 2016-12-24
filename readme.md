@@ -762,11 +762,27 @@ Option 2: Check out the commented-out filterToChangedFiles function in this proj
 * Con: Not tested against scenarios like deleted files.
 
 #### Want to see what files are in the current stream?
-See the commented-out outputFilesInStream function in this project's gulpfile.js.  It can be used like this:
+See the outputFilesInStream function in this project's buildUtils.js.  It can be used like this:
 
 ```
 return gulp.src(filesToCompile)
            .pipe(ts())
            .pipe(outputFilesInStream())
            .pipe(gulp.dest(".");
+```
+
+#### Want to require your own file in gulpfile.js but require() can't find it?
+If the file is in your project root folder, then use something like this:
+
+```
+var buildSettings = require("./buildSettings");
+```
+
+The './' is necessary because require looks in ./node_modules by default, and you need it to look in the current (.) folder (root) instead.
+
+#### Is glob not finding your file?
+Try using glob.sync instead
+
+```
+glob.sync("**\*.ts");
 ```

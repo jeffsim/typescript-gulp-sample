@@ -1,4 +1,3 @@
-var bu = require("BuildConfiguration");
 
 // Create the build configuration
 var buildConfig = new BuildConfiguration();

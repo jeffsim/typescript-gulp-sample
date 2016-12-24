@@ -3,6 +3,14 @@ var buildSettings = {
     // Dump extra output during the build process
     verboseOutput: true,
 
+    // Set this to enable compile-time debug checking; e.g. for unexpected situations like missing tsconfig.json file
+    debug: true,
+    debugSettings: {
+        // By default, if a project has no transpiled files in it then we assume error in path.  You can disable that 
+        // error by enabling allowEmptyFolders
+        // allowEmptyFolders: true
+    },
+
     // If true, then don't parallelize tasks.  Not something you would usually set; mostly just useful if you
     // are having build issues and want cleaner output.
     forceSerializedTasks: false,

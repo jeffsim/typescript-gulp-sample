@@ -15,9 +15,9 @@ var concat = require("gulp-concat"),
     uglify = require("gulp-uglify");
 
 // Load build support files
-var buildSettings = require("./buildSettings");
-var bu = require("./buildUtils");
-var bundleUtil = require("./buildBundleUtils");
+var buildSettings = require("./gulpBuild/buildSettings");
+var bu = require("./gulpBuild/buildUtils");
+var bundleUtil = require("./gulpBuild/buildBundleUtils");
 
 // ====================================================================================================================
 // Load the build configuration.  This defines the ProjectGroups and Projects which will be built, and also defines
@@ -27,26 +27,32 @@ var bundleUtil = require("./buildBundleUtils");
 // ** This is the only files that you should have to modify for your projects! **
 var buildConfig = require("./buildConfig");
 
-// Use the following buildConfig instead to play with the simpler buildConfig 
+// Use the following buildConfigs instead to play with other buildConfigs
+// NOTE: Building these does not result in executable apps (e.g. no index.html); they instead show build process.
+// var buildConfig = require("./moreExampleBuildEnvs/simpleApp/buildConfig");
 // var buildConfig = require("./moreExampleBuildEnvs/simpleLibraryAndApp/buildConfig");
+// var buildConfig = require("./moreExampleBuildEnvs/programmaticBuildConfig/buildConfig");
 
-// Finish initializing (populate default values) and return the constructed build configuration
-// TODO: Remove 'buildProjectGroup' from args
+// Finish initializing the build configuration by populating default ProjectGroup and Project values.
+// TODO: Remove 'buildConfig, buildProjectGroup' from args
 bundleUtil.finishInitializingProjects(buildConfig, buildProjectGroup);
 
+// DONE:
+// * move buildUtils.js et al into /gulpBuild
+// * Added more sample build configs
+// * Added debug checks to build to help validate buildConfig file
+// * Update joinPath to allow > 2 paths
+// * Update buildConfig.js to use dependsOn
+//
 // TODO:
 // * Update readme.
-// * Update buildConfig.js to use dependsOn
 // * replace bld and dist with settings.bldPath and settings.distPath throughout
 //   * Change so that dist, /dist, and ./dist are all valid distPaths. bld too
-// * Update joinPath to use join-path-js.  Use it on line 245 & others.
-// * move buildUtils.js et al into /gulpBuild?
 // * Add ProjectGroup.rootFolder and prepend it into all project paths in init
 // * Include example of how to actually include testLibrary in aggregate bundle
 // * Is it possible to now combine buildProject and minifyProject into one?
 // * RELATED - Can I combine minifyAggregateBundledJS and buildAggregateBundledJS?
 // * add callback to edit all files.  remove everything between //debugstart and //debugend for non-debug build.
-// * Make gulpfile watch itself.  https://codepen.io/ScavaJripter/post/how-to-watch-the-same-gulpfile-js-with-gulp
 // * Fix: Outputting '/// reference' in duality.d.ts.
 
 // Used to store global info
@@ -75,19 +81,8 @@ function buildAndMinifyProject(project) {
         () => bu.runParallel([
             () => minifyProject(project),
             () => buildDefinitionFile(project)
-        ]),
-
-        // And finally, we copy the result to the project's outputFolder from the project's buildRootFolder, as set in
-        // the project's buildConfig.  The files that are copied depends on what was built; if the project was bundled
-        // then that bundled file is copied; if the project wasn't bundled, then the source files are copied
-        //    () => copyProjectResultToOutputFolder(project)
+        ])
     ]);
-}
-
-function copyProjectResultToOutputFolder(project) {
-    // copy the result to the project's outputFolder from the project's buildRootFolder, as set in
-    // the project's buildConfig.  The files that are copied depends on what was built; if the project was bundled
-    // then that bundled file is copied; if the project wasn't bundled, then the source files are copied
 }
 
 // Build a single project. Details:
@@ -110,8 +105,10 @@ function buildProject(project) {
     if (project.extraFilesToBundle)
         for (var file of project.extraFilesToBundle) {
             // debugstart
-            if (file.indexOf(".js") != -1 && !ts.options.allowJs)
-                throw Error("Including .js files via project.extraFilesToBundle requires that allowJs be set in the project's tsconfig.json");
+            if (buildSettings.debug) {
+                if (file.indexOf(".js") != -1 && !ts.options.allowJs)
+                    throw Error("Including .js files via project.extraFilesToBundle requires that allowJs be set in the project's tsconfig.json");
+            }
             // debugend
             filesToCompile.push(bu.joinPath(project.path, file));
         }
@@ -135,7 +132,6 @@ function buildProject(project) {
         .pipe(gulp.dest(project.buildFolder))
 
         // Copy built project to outputFolder as well
-        // TODO: Not convinced I need to do this yet. But: relatively harmless
         .pipe(gulp.dest(project.outputFolder))
 
         // Output end of task
@@ -254,8 +250,10 @@ function buildProjectGroupBundle(projectGroup) {
     }
 
     return bu.runSeries([
-        () => buildAggregateBundle(projectGroup.bundleProjectsTogether, sourceFiles, false, "Build project group bundle (" + projectGroup.name + ")", projectGroup.bundleProjectsTogether.outputFolder),
-        () => buildAggregateBundle(projectGroup.bundleProjectsTogether, sourceFiles, true, "Build project group bundle (" + projectGroup.name + ")", projectGroup.bundleProjectsTogether.outputFolder),
+        () => buildAggregateBundle(projectGroup.bundleProjectsTogether, sourceFiles, false, "Build project group bundle (" +
+            projectGroup.name + ")", projectGroup.bundleProjectsTogether.outputFolder),
+        () => buildAggregateBundle(projectGroup.bundleProjectsTogether, sourceFiles, true, "Build project group bundle (" +
+            projectGroup.name + ")", projectGroup.bundleProjectsTogether.outputFolder),
         () => {
             if (!projectGroup.bundleProjectsTogether.generateTyping)
                 return bu.getCompletedStream();
@@ -362,9 +360,13 @@ function clean() {
             var project = projectGroup.projects[projectId];
             if (project.filesToClean) {
                 for (var fileToClean of project.filesToClean)
-                    filesToDelete.push(bu.joinPath(project.path, fileToClean))
-            } else
-                filesToDelete.push(bu.joinPath(project.path, "**/*.js"))
+                    filesToDelete.push(bu.joinPath(project.path, fileToClean));
+            } else {
+                // delete generated bundle files
+                filesToDelete.push(bu.joinPath(project.path, project.debugBundleFilename));
+                filesToDelete.push(bu.joinPath(project.path, project.minBundleFilename));
+                filesToDelete.push(bu.joinPath(project.path + "/typings", project.typingBundleFilename));
+            }
         }
     }
 
@@ -420,8 +422,7 @@ function precopyRequiredFiles(projectGroup) {
 
 // Called at the start of a top-level Task.
 function outputTaskHeader(taskName) {
-    if (buildSettings.verboseOutput)
-        console.log("===== " + taskName + " =======================================================");
+    bu.log("===== " + taskName + " =======================================================");
 }
 
 // Outputs task start and end info to console, including task run time.
@@ -432,7 +433,7 @@ function TaskTracker(taskName, project) {
         var outStr = startTimeStr + " Starting " + taskName;
         if (project)
             outStr += " (" + project.name + ")";
-        console.log(outStr);
+        bu.log(outStr);
     }
 
     return {
@@ -443,9 +444,9 @@ function TaskTracker(taskName, project) {
             var delta = (endTime - startTime) / 1000;
             var endTimeStr = getTimeString(endTime);
             if (project)
-                console.log(endTimeStr + " Finished " + taskName + " (" + project.name + ") after " + delta + " s");
+                bu.log(endTimeStr + " Finished " + taskName + " (" + project.name + ") after " + delta + " s");
             else
-                console.log(endTimeStr + " Finished " + taskName + " after " + delta + " s");
+                bu.log(endTimeStr + " Finished " + taskName + " after " + delta + " s");
         }
     };
 };
@@ -463,8 +464,8 @@ function getTimeString(time) {
 //
 //  1. Maintain an always-running 'watch' task which internally maintains some degree of state about a build and saves
 //     some time when rebuilding (~15% in this project, presumably more in others).  This is what the 'watch' task does.
-//  2. Maintain a *project-wide* modified state and skip building the entire project if nothing in the project (or its
-//     dependencies have changed).  That's what checkCanSkipBuildProject does.
+//  2. Maintain a *project-wide* modified state and skip building the entire project if nothing in the project has
+//     changed.  That's what checkCanSkipBuildProject does.
 
 // Checks if anything in the project has been modified and the project needs to be rebuilt; if so, returns null
 // If the project can be skipped, then returns a stream that can be returned from the caller.
@@ -495,9 +496,9 @@ function checkCanSkipBuildProject(project) {
             break;
         }
 
-    if (!hasFilesToCompile) {
-        console.log(getTimeString(new Date()) + " -- SKIPPING (" + project.name + "): no files to compile");
-    } else {
+    if (!hasFilesToCompile)
+        bu.log(getTimeString(new Date()) + " -- SKIPPING (" + project.name + "): no files to compile");
+    else {
         for (var projectFile of globFiles)
             filesToCheck.push(projectFile);
         var fileHasChanged = checkForChangedFile(filesToCheck, project.modifiedFilesCache);
@@ -507,8 +508,7 @@ function checkCanSkipBuildProject(project) {
             return null;
 
         // If here, then no files in the project have changed; skip!
-        if (buildSettings.verboseOutput)
-            console.log(getTimeString(new Date()) + " -- SKIPPING (" + project.name + "): no files changed");
+        bu.log(getTimeString(new Date()) + " -- SKIPPING (" + project.name + "): no files changed");
     }
 
     // Create an already-completed stream; caller will pass back up the chain
@@ -538,8 +538,7 @@ function checkCanSkipBuildBundle(bundle) {
         return null;
 
     // If here, then no files that we'd bundle have changed; skip!
-    if (buildSettings.verboseOutput)
-        console.log(getTimeString(new Date()) + " -- SKIPPING BUNDLE: no files changed");
+    bu.log(getTimeString(new Date()) + " -- SKIPPING BUNDLE: no files changed");
 
     // Create an already-completed stream; caller will pass back up the chain
     return bu.getCompletedStream();
@@ -608,7 +607,7 @@ function buildAll(buildProjectGroup, createBundle) {
 // Does a complete rebuild
 gulp.task("rebuild-all", function () {
     if (buildSettings.forceSerializedTasks)
-        console.log("== Forcing serialized tasks ==");
+        bu.log("== Forcing serialized tasks ==");
 
     // Don't do an incremental build
     buildSettings.incrementalBuild = false;
@@ -625,12 +624,12 @@ gulp.task("rebuild-all", function () {
 // Builds everything (w/o cleaning first)
 gulp.task("build-all", function () {
     if (globals.isFirstBuild) {
-        console.log("== First build; complete build will be performed ==");
+        bu.log("== First build; complete build will be performed ==");
         globals.isFirstBuild = false;
     }
 
     if (buildSettings.forceSerializedTasks)
-        console.log("== Forcing serialized tasks ==");
+        bu.log("== Forcing serialized tasks ==");
 
     // Do an incremental build at the project-level
     buildSettings.incrementalBuild = true;

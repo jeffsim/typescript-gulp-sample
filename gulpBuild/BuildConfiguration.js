@@ -4,8 +4,7 @@ function BuildConfiguration() {
 
 // Adds the specified projectgroup to the  buildConfig
 BuildConfiguration.prototype.addProjectGroup = function (projectGroup) {
-    buildConfig.projectGroups = buildConfig.projectGroups;
-    buildConfig.projectGroups[projectGroup.name] = projectGroup;
+    this.projectGroups[projectGroup.name] = projectGroup;
     return projectGroup;
 }
 
@@ -25,3 +24,5 @@ BuildConfiguration.prototype.addProject = function (project) {
     });
     return this.addProjectToProjectGroup(project, projectGroup);
 }
+
+module.exports = BuildConfiguration;

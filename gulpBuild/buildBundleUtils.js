@@ -1,5 +1,6 @@
-var buildSettings = require("./buildSettings");
-var bu = require("./buildUtils");
+var glob = require("glob"),
+    bu = require("./buildUtils"),
+    buildSettings = require("./buildSettings");
 
 var bundleUtils = {
     finishInitializingBundles: function (buildConfig) {
@@ -12,12 +13,17 @@ var bundleUtils = {
             buildConfig.aggregateBundles[bundleName] = finishInitializingBundle(buildConfig.aggregateBundles[bundleName]);
     },
 
-
     finishInitializingProjects: function (buildConfig, buildProjectGroup) {
         for (var projectGroupId in buildConfig.projectGroups) {
             var projectGroup = buildConfig.projectGroups[projectGroupId];
             if (projectGroup.name === undefined)
                 projectGroup.name = projectGroupId;
+
+            if (buildSettings.debug) {
+                // If ProjectGroup specified a tsconfig.json file for all projects within it, then verify tsconfig.json file is present
+                if (projectGroup.tsConfigFile)
+                    bu.assert(bu.fileExists(projectGroup.tsConfigFile), "projectGroup.tsConfigFile not found for ProjectGroup '" + projectGroupId + "'");
+            }
 
             for (var projectId in projectGroup.projects) {
                 var project = projectGroup.projects[projectId];
@@ -66,12 +72,28 @@ var bundleUtils = {
                     project.typingBundleFilename = project.name + buildSettings.bundleSuffix + ".d.ts"
 
                 // project.files - if not specified then default to project.path/**.*.ts
-                // if specified, then rebase to within project.path
                 if (project.files === undefined)
                     project.files = ["**/*.ts"];
+
                 // Rebase passed-in file names so that they are within the project folder
                 for (var i = 0; i < project.files.length; i++)
                     project.files[i] = bu.joinPath(project.path, project.files[i]);
+
+                if (buildSettings.debug) {
+                    // do various checks to validate the config file
+
+                    // if projectgroup didn't specify a tsconfig.json file for all projects in it, then verify that this project's
+                    // tsconfig.json file is in the project root
+                    if (!projectGroup.tsConfigFile)
+                        bu.assert(bu.fileExists(bu.joinPath(project.path, "tsconfig.json")), "tsconfig.json file not found in Project root('" + project.path + "') for Project '" + projectId + "'");
+
+                    // Verify that there's at least one file to compile.
+                    if (!buildSettings.debugSettings.allowEmptyFolders) {
+                        var numFiles = 0;
+                        project.files.forEach((fileGlob) => numFiles += glob.sync(fileGlob).length);
+                        bu.assert(numFiles > 0, "No .ts files found for project '" + projectId + "'.  If this is expected behavior, then set buildSettings.debug.allowEmptyFolders:true");
+                    }
+                }
             }
         }
 
@@ -85,7 +107,7 @@ var bundleUtils = {
 
 
     // build dependency graph of ProjectGroups within the specified buildConfig. Uses basic depth-first topo sort and
-    // compares 'project.dependsOn: object[]' values
+    // compares 'project.dependsOn: object[]' values.
     // NOTE: This function is not heavily tested.  If dependency graph isn't working for you, then skip this by defining
     // your own buildConfig.buildAll() which sets order explicitly; see the main buildConfig in this sample env for example
     buildProjectDependencyGraph: function (buildConfig, buildProjectGroup) {
@@ -107,7 +129,7 @@ var bundleUtils = {
                             exploreProjectGroup(dependentProject.projectGroup);
                 }
                 projectGroup.state = state.placed;
-                buildSlots.push(()=>buildProjectGroup(projectGroup))
+                buildSlots.push(() => buildProjectGroup(projectGroup))
             }
         }
 
