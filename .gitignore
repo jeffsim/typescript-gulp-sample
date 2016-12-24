@@ -15,6 +15,8 @@ samples/testApp/testApp*.js*
 samples/testApp2/testApp2*.js*
 samples/testApp2/testApp2plugin/testPlugin.js*
 moreExampleBuildEnvs/**/test*.js
-moreExampleBuildEnvs/**/*debug*.js
 moreExampleBuildEnvs/**/*.d.ts
+**/*-min.js
+**/*-debug.js
+
 **/*.js.map

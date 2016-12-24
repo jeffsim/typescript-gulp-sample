@@ -4,6 +4,8 @@ var glob = require("glob"),
 
 var bundleUtils = {
     finishInitializingBundles: function (buildConfig) {
+        if (buildConfig.bundlesInitialized)
+            return;
 
         // Generate Aggregate Bundles' output file names; these include version stamp if specified.  We need to do
         // this now as some projects reference the bundle names when copying files
@@ -11,9 +13,16 @@ var bundleUtils = {
         // Example of formatting: 'duality-0.1.1.debug.js'
         for (var bundleName in buildConfig.aggregateBundles)
             buildConfig.aggregateBundles[bundleName] = finishInitializingBundle(buildConfig.aggregateBundles[bundleName]);
+        buildConfig.bundlesInitialized = true;
     },
 
-    finishInitializingProjects: function (buildConfig, buildProjectGroup) {
+    finishInitializingProjects: function (buildConfig, buildProjectGroup, createAggregateBundle) {
+
+        // If the buildConfig.js didn't complete initialization of any bundles, then do so automatically here.  A more 
+        // complex build environment may do this initialization itself
+        if (!buildConfig.bundlesInitialized);
+            this.finishInitializingBundles(buildConfig);
+
         for (var projectGroupId in buildConfig.projectGroups) {
             var projectGroup = buildConfig.projectGroups[projectGroupId];
             if (projectGroup.name === undefined)
@@ -109,7 +118,7 @@ var bundleUtils = {
 
         // IF the buildConfig doesn't have a buildAll function defined, then create one now based around dependenies
         if (!buildConfig.buildAll)
-            bundleUtils.buildProjectDependencyGraph(buildConfig, buildProjectGroup);
+            bundleUtils.buildProjectDependencyGraph(buildConfig, buildProjectGroup, createAggregateBundle);
 
         // Return the config to enable chaining
         return buildConfig;
@@ -120,7 +129,7 @@ var bundleUtils = {
     // compares 'project.dependsOn: object[]' values.
     // NOTE: This function is not heavily tested.  If dependency graph isn't working for you, then skip this by defining
     // your own buildConfig.buildAll() which sets order explicitly; see the main buildConfig in this sample env for example
-    buildProjectDependencyGraph: function (buildConfig, buildProjectGroup) {
+    buildProjectDependencyGraph: function (buildConfig, buildProjectGroup, createAggregateBundle) {
         var state = { exploring: 1, placed: 2 };
         var buildSlots = [];
         for (var projectGroupId in buildConfig.projectGroups)
@@ -143,6 +152,12 @@ var bundleUtils = {
             }
         }
 
+        // If here, then buildAll isn't specified; if there are any aggregateBundles then build them after the above
+        if (buildConfig.aggregateBundles)
+            for (var bundleId in buildConfig.aggregateBundles) {
+                let bundle = buildConfig.aggregateBundles[bundleId];
+                buildSlots.push(()=>createAggregateBundle(bundle));
+            }
         // Create the buildAll function on buildConfig with the proper order here.
         buildConfig.buildAll = function (buildProjectGroup, createBundle) {
             return bu.runSeries(buildSlots);

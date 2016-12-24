@@ -253,9 +253,11 @@ var plugins = {
     projects: [{
         name: "debugDualityPlugin",
         path: "plugins/duality/debugDualityPlugin",
+        aggregateBundle: buildConfig.aggregateBundles.duality,
     }, {
         name: "debugDuality2",
         path: "plugins/duality/debugPlugin2",
+        aggregateBundle: buildConfig.aggregateBundles.duality,
     }, {
         name: "threejs",
         path: "plugins/threeJS",
@@ -373,7 +375,7 @@ commonFiles: ["tests/typings/*.d.ts"],
     * It's in the todo list at top of this file.
 
 # Bundling
-This build environment creates a bundle which includes all projects identified as libraries with includeInBundle = true (TODO: out of date).  This bundle
+This build environment creates a bundle which includes all projects identified as libraries with aggregateBundle = true.  This bundle
 is the penultimate output of the whole process, containing the editor and all built-in plugins.  It is sufficient by itself, although
 the build environment also outputs non-built-in libraries for optional inclusion by apps.
 

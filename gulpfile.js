@@ -20,11 +20,12 @@ var bu = require("./gulpBuild/buildUtils"),
     bundleUtil = require("./gulpBuild/buildBundleUtils");
 
 // DONE:
+// * Added simpleAggregateBundle samples
 //
 // TODO NEXT:
-// * Update readme.
 //
 // TODO LATER:
+// * Update readme.
 // * Remove 'buildConfig, buildProjectGroup' from finishInitializingProjects args
 
 
@@ -32,22 +33,23 @@ var bu = require("./gulpBuild/buildUtils"),
 // ************************************************************************************************
 // ************************************************************************************************
 // **                                                                                            **
-// **     buildConfig.js is the only files that you should have to modify for your projects!     **
+// **      buildConfig.js is the only file that you should have to modify for your projects!     **
 // **                                                                                            **
 // ************************************************************************************************
 // ************************************************************************************************
 
 // Load the build configuration.  This defines the ProjectGroups and Projects which will be built
-var buildConfig = require("./buildConfig");
+// var buildConfig = require("./buildConfig");
 
 // Comment out the above and use the following buildConfigs instead to play with other buildConfigs
 // NOTE: Building these does not result in executable apps (e.g. no index.html); they instead show build process.
 // var buildConfig = require("./moreExampleBuildEnvs/simpleApp/buildConfig");
 // var buildConfig = require("./moreExampleBuildEnvs/simpleLibraryAndApp/buildConfig");
 // var buildConfig = require("./moreExampleBuildEnvs/programmaticBuildConfig/buildConfig");
+var buildConfig = require("./moreExampleBuildEnvs/simpleAggregateBundle/buildConfig");
 
 // Finish initializing the build configuration by populating default ProjectGroup and Project values.
-bundleUtil.finishInitializingProjects(buildConfig, buildProjectGroup);
+bundleUtil.finishInitializingProjects(buildConfig, buildProjectGroup, createAggregateBundle);
 
 
 // Used to store global info
@@ -271,9 +273,8 @@ function buildProjectGroupBundle(projectGroup) {
 
 // Takes the pre-built bundle-debug.js file and bundle/minify it into bundle-min.js
 function minifyAggregateBundledJS(bundle) {
-    var debugSourceFilename = bu.joinPath(bundle.isProjectBundle ? "./" : buildSettings.distPath, bundle.debugFilename);
-    var destFolder = (bundle.isProjectBundle ? bundle.project.path : buildSettings.distPath);
-    return buildAggregateBundle(bundle, [debugSourceFilename], true, "Minify bundled JS", destFolder);
+    var debugSourceFilename = bu.joinPath(bundle.outputFolder, bundle.debugFilename);
+    return buildAggregateBundle(bundle, [debugSourceFilename], true, "Minify bundled JS", bundle.outputFolder);
 }
 
 // This is passed in one or more already built files (with corresponding sourcemaps); it bundles them into just
