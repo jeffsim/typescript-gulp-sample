@@ -28,11 +28,9 @@ var buildSettings = {
     recompiledOnDTSChanges: false,
 
     // Defines the folder into which distributable files should be placed.  By default == "./dist"
-    // NOTE: Don't use something like "/dist" as that'll go to the root of your HDD
     distPath: "./dist",
 
     // Defines the folder into which temporary built files are placed.  By default == "./bld"
-    // NOTE: Don't use something like "/bld" as that'll go to the root of your HDD
     bldPath: "./bld",
 
     // string to add to the name of generated bundle files.  e.g. "-bundle" would result in something like duality-bundle-debug.js.

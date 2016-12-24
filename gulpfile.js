@@ -38,21 +38,16 @@ var buildConfig = require("./buildConfig");
 bundleUtil.finishInitializingProjects(buildConfig, buildProjectGroup);
 
 // DONE:
-// * move buildUtils.js et al into /gulpBuild
-// * Added more sample build configs
-// * Added debug checks to build to help validate buildConfig file
-// * Update joinPath to allow > 2 paths
-// * Update buildConfig.js to use dependsOn
+// * replace bld and dist with settings.bldPath and settings.distPath throughout
+//   * Change so that dist, /dist, and ./dist are all valid distPaths. bld too
 //
 // TODO:
 // * Update readme.
-// * replace bld and dist with settings.bldPath and settings.distPath throughout
-//   * Change so that dist, /dist, and ./dist are all valid distPaths. bld too
 // * Add ProjectGroup.rootFolder and prepend it into all project paths in init
 // * Include example of how to actually include testLibrary in aggregate bundle
 // * Is it possible to now combine buildProject and minifyProject into one?
 // * RELATED - Can I combine minifyAggregateBundledJS and buildAggregateBundledJS?
-// * add callback to edit all files.  remove everything between //debugstart and //debugend for non-debug build.
+// * As an example, add callback to edit all files in stream.  remove everything between //debugstart and //debugend for non-debug build.
 // * Fix: Outputting '/// reference' in duality.d.ts.
 
 // Used to store global info
@@ -257,6 +252,7 @@ function buildProjectGroupBundle(projectGroup) {
         () => {
             if (!projectGroup.bundleProjectsTogether.generateTyping)
                 return bu.getCompletedStream();
+                
             // Create list of typing files we'll bundle
             var typingFiles = [];
             for (var projectId in projectGroup.projects) {
@@ -267,7 +263,7 @@ function buildProjectGroupBundle(projectGroup) {
 
             return gulp.src(typingFiles)
                 .pipe(concat(projectGroup.bundleProjectsTogether.typingFilename))
-                .pipe(gulp.dest(bu.joinPath(buildSettings.distPath, "typings")))
+                .pipe(gulp.dest(bu.joinPath(".", buildSettings.distPath, "typings")))
                 .on("end", () => taskTracker.end());
         }
     ]);
@@ -275,8 +271,8 @@ function buildProjectGroupBundle(projectGroup) {
 
 // Takes the pre-built bundle-debug.js file and bundle/minify it into bundle-min.js
 function minifyAggregateBundledJS(bundle) {
-    var debugSourceFilename = (bundle.isProjectBundle ? "./" : "dist/") + bundle.debugFilename;
-    var destFolder = (bundle.isProjectBundle ? bundle.project.path : "dist");
+    var debugSourceFilename = bu.joinPath(bundle.isProjectBundle ? "./" : buildSettings.distPath, bundle.debugFilename);
+    var destFolder = (bundle.isProjectBundle ? bundle.project.path : buildSettings.distPath);
     return buildAggregateBundle(bundle, [debugSourceFilename], true, "Minify bundled JS", destFolder);
 }
 
@@ -316,7 +312,7 @@ function buildAggregateBundledDTS(bundle) {
         }
     return gulp.src(files)
         .pipe(concat(bundle.typingFilename))
-        .pipe(gulp.dest(bu.joinPath(buildSettings.distPath, "typings")))
+        .pipe(gulp.dest(bu.joinPath(".", buildSettings.distPath, "typings")))
         .on("end", () => taskTracker.end());
 }
 
@@ -330,8 +326,8 @@ function clean() {
     // Create list of files to delete.  Start with files that apply across all apps
     var filesToDelete = [
         // Delete /dist and /bld entirely
-        buildSettings.bldPath,
-        buildSettings.distPath,
+        bu.joinPath(".", buildSettings.bldPath),
+        bu.joinPath(".", buildSettings.distPath),
 
         // Delete all sourcemaps, everywhere
         "**/*.js.map",
@@ -528,7 +524,7 @@ function checkCanSkipBuildBundle(bundle) {
         for (var projectId in buildConfig.projectGroups[projectGroup].projects) {
             var project = buildConfig.projectGroups[projectGroup].projects[projectId];
             if (project.includeInBundle == bundle)
-                filesToCheck.push("bld/" + project.path + "/" + project.name + "-debug.js");
+                filesToCheck.push(bu.joinPath(buildSettings.bldPath, project.path, project.name + "-debug.js"));
         }
     }
     var fileHasChanged = checkForChangedFile(filesToCheck, bundle.modifiedBundleCache);

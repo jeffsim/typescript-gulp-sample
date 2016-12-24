@@ -46,7 +46,10 @@ var bundleUtils = {
 
                 // By default, project files are built into /bld
                 if (project.buildRootFolder === undefined)
-                    project.buildRootFolder = "bld";
+                    project.buildRootFolder = buildSettings.bldPath;
+                
+                // Ensure project is rooted in build root folder, not file system root folder
+                project.buildRootFolder = bu.joinPath(".", project.buildRootFolder);
 
                 // buildFolder is where files get built into - combination of root folder (e.g. bld/) and project.path (e.g. plugins/plugin1)
                 if (project.buildFolder === undefined)
@@ -55,6 +58,9 @@ var bundleUtils = {
                 // By default, project output files are copied into the project's folder
                 if (project.outputFolder === undefined)
                     project.outputFolder = project.path;
+
+                // Ensure outputFolder is rooted in build root folder, not file system root folder
+                project.outputFolder = bu.joinPath(".", project.outputFolder);
 
                 // By default, project output files are bundled together
                 if (project.bundleFiles === undefined)
@@ -156,6 +162,8 @@ function finishInitializingBundle(bundle, project) {
 
     if (!bundle.outputFolder)
         bundle.outputFolder = buildSettings.distPath;
+    // ensure bundle is rooted in the build root; otherwise, could end up in file system root if caller specifies something like "/dist"
+    bundle.outputFolder = bu.joinPath(".", bundle.outputFolder);
 
     // Set the output file names (if not already set in the bundle)
     bundle.debugFilename = bundle.debugFilename || (bundleNameVer + ".debug.js");

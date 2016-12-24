@@ -1,5 +1,16 @@
-var bu = require("./gulpBuild/buildUtils");
-var bundleUtil = require("./gulpBuild/buildBundleUtils");
+var bu = require("./gulpBuild/buildUtils"),
+    bundleUtil = require("./gulpBuild/buildBundleUtils"),
+    buildSettings = require("./gulpBuild/buildSettings");
+
+
+
+// =============================================================================================================
+// NOTE: This is an example of a fairly complex build configuration.
+// For simpler examples, look at the buildConfig files in ./moreExampleBuildEnvs.
+// You can also build those by commenting/uncommenting the appropriate 'var buildConfig=...' lines near the top of gulpfile.js
+// =============================================================================================================
+
+
 
 function initialize() {
     var buildConfig = {};
@@ -127,28 +138,9 @@ function initialize() {
             // you'll get 'duplicate definition' errors, because both old and new bundles exist.  To fix, delete the
             // old ones.
             version: "0.0.2",
-        },
+        }
 
-        // All tests are copied into a single bundle file.  I've opted to do it this way
-        // so that tests load faster; e.g. if you have 500 tests, you only have to load 1 test file.  If this doesn't
-        // work for you for any reason, then just remove testBundle (and its references in buildConfig.tests), and
-        // the files will be built separately and placed alongside the source.
-        testBundle: {
-            // Name of the bundle.  We're not specifying version in this bundle, so output names would by default
-            // be: tests-bundle.debug.js and tests-min.debug.js
-            name: "tests",
-
-            // Note: nothing else is using the output file, so no need to generate typings (generateTyping defaults to false)
-
-            // output to /tests folder
-            outputFolder: "tests",
-
-            // While we could just reference the default bundle name of 'tests-bundle-debug.js' in tests.html, to
-            // demonstrate renaming the output bundle files, we set the debugFilename and minFilename fields here.
-            // no need to override typingFilename as we don't output d.ts files for tests.
-            debugFilename: "tests-all-debug.js",
-            minFilename: "tests-all-min.js",
-        },
+        // You could add other aggregate bundles here as well...
     }
 
     // finish initializing aggregate bundles.  need to do before initalizing buildConfig.projectgroups since
@@ -158,6 +150,7 @@ function initialize() {
     // =============================================================================================================
     // ======= PROJECTS ============================================================================================        
     buildConfig.projectGroups = {};
+
     // Defines the main editor project group
     buildConfig.projectGroups.editor = {
 
@@ -185,7 +178,10 @@ function initialize() {
 
         // All projects in this group have these files copied into their sample folders.  Built files from
         // previous projects in this build env typically go here.
-        filesToPrecopyToAllProjects: [{ src: "bld/editor/typings/editor.d.ts", dest: "typings" }],
+        filesToPrecopyToAllProjects: [{
+            src: bu.joinPath(".", buildSettings.bldPath, "editor/typings/editor.d.ts"),
+            dest: "typings"
+        }],
 
         // project overrides that are applied to all projects in this projectGroup
         projectDefaults: {
@@ -221,7 +217,7 @@ function initialize() {
                 aggregateBundle: null,
 
                 // This isn't a built-in plugin, but it is distributable, so output to /dist
-                outputFolder: "dist"
+                outputFolder: buildSettings.distPath
             }
         }
     };
@@ -236,7 +232,10 @@ function initialize() {
         commonFiles: ["tests/typings/*.d.ts"],
 
         // All projects in this ProjectGroup use the same duality*.d.ts file, so copy it into /tests/typings
-        filesToPrecopyOnce: [{ src: "dist/typings/" + buildConfig.aggregateBundles.duality.typingFilename, dest: "tests/typings" }],
+        filesToPrecopyOnce: [{
+            src: bu.joinPath(buildSettings.distPath, "typings", buildConfig.aggregateBundles.duality.typingFilename),
+            dest: "tests/typings"
+        }],
 
         // we opt to combine all tests into a single bundle so that they can be loaded with minimal network load.
         bundleProjectsTogether: {
@@ -265,7 +264,10 @@ function initialize() {
     buildConfig.projectGroups.samples = {
 
         // All projects in this group have these files copied into their sample folders.  Built files typically go here.
-        filesToPrecopyToAllProjects: [{ src: "dist/typings/" + buildConfig.aggregateBundles.duality.typingFilename, dest: "typings" }],
+        filesToPrecopyToAllProjects: [{
+            src: bu.joinPath(buildSettings.distPath, "typings", buildConfig.aggregateBundles.duality.typingFilename),
+            dest: "typings"
+        }],
 
         // project overrides that are applied to all projects in this projectGroup
         projectDefaults: { // Because I want samples to be more 'standalone', built output goes into the sample folder
@@ -313,16 +315,7 @@ function initialize() {
 
             // Tests and samples can be built in parallel
             () => bu.runParallel([
-                // When building tests, build them and then bundle them
-                () => bu.runSeries([
-                    // First, build the tests
-                    () => buildProjectGroup(buildConfig.projectGroups.tests),
-
-                    // Now that tests are built independently, bundle them together into one file
-                    // TODO: Find a way to generalize this better.  Maybe because it's specific the projectgroup I can specify it at that level?
-                    () => createBundle(buildConfig.aggregateBundles.testBundle)
-                ]),
-                // In parallel with building tests, build samples
+                () => buildProjectGroup(buildConfig.projectGroups.tests),
                 () => buildProjectGroup(buildConfig.projectGroups.samples)
             ])
         ]);

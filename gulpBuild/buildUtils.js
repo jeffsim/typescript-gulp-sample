@@ -65,6 +65,10 @@ module.exports = {
         // Incremental builds need to maintain the src's modified time in the dest copy, but gulp.src.dest doesn't do that
         // Automatically.  So: call preservetime.
         // See http://stackoverflow.com/questions/26177805/copy-files-with-gulp-while-preserving-modification-time
+
+        // preface src and destPath with ./ to ensure it isn't copying to or from the filesystem root
+        src = this.joinPath(".", src);
+        destPath = this.joinPath(".", destPath);
         return gulp.src(src)
             .pipe(gulp.dest(destPath))
             .pipe(gulpIf(buildSettings.incrementalBuild, preservetime()));
