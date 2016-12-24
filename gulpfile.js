@@ -25,10 +25,10 @@ var bundleUtil = require("./buildBundleUtils");
 // Also load build settings
 
 // ** This is the only files that you should have to modify for your projects! **
-// var buildConfig = require("./buildConfig");
+var buildConfig = require("./buildConfig");
 
 // Use the following buildConfig instead to play with the simpler buildConfig 
-var buildConfig = require("./moreExampleBuildEnvs/simpleLibraryAndApp/buildConfig");
+// var buildConfig = require("./moreExampleBuildEnvs/simpleLibraryAndApp/buildConfig");
 
 // Finish initializing (populate default values) and return the constructed build configuration
 // TODO: Remove 'buildProjectGroup' from args

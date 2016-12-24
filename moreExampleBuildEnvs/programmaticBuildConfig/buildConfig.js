@@ -10,7 +10,8 @@ var testLibrary = buildConfig.addProject({
     generateTyping: true
 });
 
-// Add test app.  set dependency on test library
+// Add test app.  set dependency on test library.  This drives build order & also copies and includes library's js and
+// d.ts files in compilation and for ambient typing.
 buildConfig.addProject({
     name: "testApp",
     path: "moreExampleBuildEnvs/programmaticBuildConfig/testApp",

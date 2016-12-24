@@ -107,7 +107,7 @@ var bundleUtils = {
                             exploreProjectGroup(dependentProject.projectGroup);
                 }
                 projectGroup.state = state.placed;
-                buildSlots.push(projectGroup)
+                buildSlots.push(()=>buildProjectGroup(projectGroup))
             }
         }
 
