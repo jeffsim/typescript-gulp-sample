@@ -2,7 +2,6 @@
     "compilerOptions": {
         "target": "es5",
         "sourceMap": true,
-        "skipLibCheck": true,
-        "allowJs": true
+        "skipLibCheck": true
     }
 }

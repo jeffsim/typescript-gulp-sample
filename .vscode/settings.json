@@ -1,7 +1,7 @@
 // Place your settings in this file to overwrite default and user settings.
 {
     "files.exclude": {
-        "**/.git*": true,
+        // "**/.git*": true,
         "samples/**/*.js": { "when": "$(basename).ts" },
         "samples/**/*.js.map": true,
         "tests/**/*.js": { "when": "$(basename).ts" },

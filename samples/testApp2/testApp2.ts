@@ -1,5 +1,3 @@
-declare var testMe;
-
 setTimeout(function () {
 
   console.log("i am test app 2");

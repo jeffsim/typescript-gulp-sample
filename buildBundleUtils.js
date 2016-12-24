@@ -16,6 +16,9 @@ module.exports = {
     finishInitializingProjects: function (buildConfig) {
         for (var projectGroupId in buildConfig.projectGroups) {
             var projectGroup = buildConfig.projectGroups[projectGroupId];
+            if (projectGroup.name === undefined)
+                projectGroup.name = projectGroupId;
+
             for (var project of projectGroup.projects) {
 
                 // All projects must specify a name and path
@@ -69,6 +72,9 @@ module.exports = {
                     project.files[i] = bu.joinPath(project.path, project.files[i]);
             }
         }
+
+        // Return the config to enable chaining
+        return buildConfig;
     }
 }
 

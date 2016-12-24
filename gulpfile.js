@@ -14,28 +14,35 @@ var concat = require("gulp-concat"),
     tsc = require("gulp-typescript"),
     uglify = require("gulp-uglify");
 
+// Load build support files
+var buildSettings = require("./buildSettings");
+var bu = require("./buildUtils");
+var bundleUtil = require("./buildBundleUtils");
 
 // ====================================================================================================================
 // Load the build configuration.  This defines the ProjectGroups and Projects which will be built, and also defines
 // the primary 'buildAll' function (which needs to happen in the buildConfig file to allow it to define build order).
 // Also load build settings
 
-// ** These are the only files that you should have to modify for your projects! **
+// ** This is the only files that you should have to modify for your projects! **
+var buildConfig = require("./buildConfig");
 
-var buildConfig = require("./buildConfig").initialize();
-var buildSettings = require("./buildSettings");
+// Use the following buildConfig instead to play with the simpler buildConfig 
+//var buildConfig = require("./moreExampleBuildEnvs/simpleLibraryAndApp/buildConfig");
 
-// Include build utilities
-var bu = require("./buildUtils");
+// Finish initializing (populate default values) and return the constructed build configuration
+bundleUtil.finishInitializingProjects(buildConfig);
 
 // NEXT CHECKIN:
 // * Given changes, update readme.
+// * Update buildCOnfig.js to use dependsOn
 // * replace bld and dist with settings.bldPath and settings.distPath throughout
-//   * Change so that dist, /dist, and ./dist are all valid distPaths.
+//   * Change so that dist, /dist, and ./dist are all valid distPaths. bld too
 // * Update joinPath to use join-path-js.  Use it on line 245 & others.
-// * move buildUtils.js into /build?
+// * move buildUtils.js et al into /gulpBuild?
 // * Create multiple simple example samples under a 'moreSamples' folder
-//   - need to figure out how to NOT copy gulpfile and buildBundleUtils etc into every one.
+// * if buildAll isn't specified, then build a dependency tree between projects using dependsOn and use that to define default build order
+//      then, remove buildAll from simpleLibraryAndApp
 
 // * Is it possible to now combine buildProject and minifyProject into one?
 // * RELATED - Can I combine minifyAggregateBundledJS and buildAggregateBundledJS?
@@ -248,8 +255,8 @@ function buildProjectGroupBundle(projectGroup) {
             // Create list of typing files we'll bundle
             var typingFiles = [];
             for (var project of projectGroup.projects)
-            if (project.generateTyping)
-                typingFiles.push(project.buildFolder + "/typings/" + project.typingBundleFilename);
+                if (project.generateTyping)
+                    typingFiles.push(project.buildFolder + "/typings/" + project.typingBundleFilename);
 
             return gulp.src(typingFiles)
                 .pipe(concat(projectGroup.bundleProjectsTogether.typingFilename))
@@ -382,6 +389,19 @@ function precopyRequiredFiles(projectGroup) {
             for (var fileToCopy of project.filesToPrecopy) {
                 let file = fileToCopy, p = project; // closure
                 buildActions.push(() => bu.copyFile(file.src, bu.joinPath(p.path, file.dest)));
+            }
+
+        // Copy any dependent projects
+        if (project.dependsOn) 
+            for (var dependentProject of project.dependsOn) {
+                let p = project; // closure
+                var libSrc = bu.joinPath(dependentProject.outputFolder, "**/*.js")
+                var libDest = bu.joinPath(p.path, "lib");
+                var typingSrc = bu.joinPath(dependentProject.outputFolder, "typings/*.d.ts")
+                var typingDest = bu.joinPath(p.path, "typings");
+                buildActions.push(() => bu.copyFile(libSrc, libDest));
+                buildActions.push(() => bu.copyFile(typingSrc, typingDest));
+                
             }
     }
     return bu.runParallel(buildActions).on("end", () => taskTracker.end());
@@ -562,6 +582,16 @@ function buildProjects(projectGroup) {
     return bu.runParallel(buildActions);
 }
 
+function buildAll(buildProjectGroup, createBundle) {
+    // If buildConfig contains a custom buildAll then use it.  Used when a buildConfig does more complex building
+    // If no custom buildAll then just build all of the ProjectGroups in order
+    if (buildConfig.buildAll)
+        return buildConfig.buildAll(buildProjectGroup, createAggregateBundle);
+    else
+        for (var projectGroup in buildConfig.projectGroups)
+            buildProjectGroup(buildConfig.projectGroups[projectGroup]);
+}
+
 // Does a complete rebuild
 gulp.task("rebuild-all", function () {
     if (buildSettings.forceSerializedTasks)
@@ -575,7 +605,7 @@ gulp.task("rebuild-all", function () {
         () => clean(),
 
         // TODO (HACK/CLEANUP): don't pass these in ><.
-        () => buildConfig.buildAll(buildProjectGroup, createAggregateBundle)
+        () => buildAll(buildProjectGroup, createAggregateBundle)
     ]);
 });
 
@@ -593,7 +623,7 @@ gulp.task("build-all", function () {
     buildSettings.incrementalBuild = true;
 
     // TODO (HACK/CLEANUP): don't pass these in ><.
-    return buildConfig.buildAll(buildProjectGroup, createAggregateBundle);
+    return buildAll(buildProjectGroup, createAggregateBundle);
 });
 
 // Watches; also enables incremental builds.  You can just run this task and let it handle things
