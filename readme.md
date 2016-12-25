@@ -38,6 +38,8 @@ can substantially reduce compilation during development.
 
 This assumes you already have a basic Typescript project set up and running.  
 
+***Important: This build environment has not been deeply tested yet.  Be sure to backup your project first to ensure nothing gets messed up!***
+
 1. Copy tasks.json, gulpfile.js and the gulpBuild folder to your project
 2. Create a new file called 'buildConfig.js' and place it in your project's root.
 3. Populate buildConfig.js with your build configuration.
