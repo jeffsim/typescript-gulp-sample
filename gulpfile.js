@@ -84,6 +84,20 @@ function clean() {
                 filesToDelete.push(bu.joinPath(project.path, project.minBundleFilename));
                 filesToDelete.push(bu.joinPath(project.path, "typings", project.typingBundleFilename));
             }
+
+            // If a project dependsOn another, then we copied its js and d.ts files over (to ./lib and ./typing) - remove them
+            if (project.dependsOn) {
+                project.dependsOn.forEach((dependency) => {
+                    // Get the list of files that were copied over from the dependent project into this project's ./lib
+                    // folder and add them
+                    filesToDelete.push(bu.joinPath(project.path, "lib", dependency.debugBundleFilename));
+                    filesToDelete.push(bu.joinPath(project.path, "lib", dependency.minBundleFilename));
+
+                    // Add the dependent project's dts file (if any)
+                    if (dependency.generateTyping)
+                        filesToDelete.push(bu.joinPath(project.path, "typings", dependency.typingBundleFilename));
+                });
+            }
         }
     }
 
