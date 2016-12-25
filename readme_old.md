@@ -1,52 +1,108 @@
-# typescript-gulp-sample
-This project demonstrates one way to setup a gulp-based development environment for Typescript with the following features:
-- Debug and minified builds
+# **This readme is very much a work in progress!**
+
+# **It's also out of date at the moment**
+
+# Table of Contents
+* [What is this?](#what-is-this)
+* [VS Code](#vs-code)
+* [How to test the build environment](#how-to-test-the-build-environment)
+* [From the top: Using gulp and tasks](#from-the-top-using-gulp-and-tasks)
+* [buildConfig.js](#buildconfigjs)
+* [The Project System](#the-project-system)
+* [Folders](#folders)
+* [Managing and moving files between projects at build time](#managing-and-moving-files-between-projects-at-build-time)
+* [Bundling](#bundling)
+* [Build Settings](#build-settings)
+* [Debug and minified builds](#debug-and-minified-builds)
+* [Incremental Builds](#incremental-builds)
+* [Ordering files for Typescript build](#ordering-files-for-typescript-build)
+* [Typings](#typings)
+* [Tasks, runSeries and runParallel](#tasks-runseries-and-runparallel)
+* [tsconfig.json](#tsconfigjson)
+* [taskTracker](#tasktracker)
+* [Sourcemap-based debugging](#sourcemap-based-debugging)
+* [Debugging the gulpfile](#debugging-the-gulpfile)
+* [Running tests](#running-tests)
+* [Lessons learned while doing this](#lessons-learned-while-doing-this)
+
+# What is this?
+This is my evolving effort to create a gulp-based dev environment for my Typescript projects which supports:
+- debug and minified builds
 - Sourcemap-based debugging
 - File- and Project-level incremental compilation
-- Bundling output into a single file
-- How to work with namespaces (internal modules) and /// reference
-- Ensuring proper ordering of files (e.g. base classes before derived classes) in the build
-- Automatic generation of typings, and ambient typings while dev'ing
+- Bundling library output into a single js file using namespaces (not external modules)
+- Proper ordering of files (e.g. base classes before derived classes) in the build
+- Ambient typings working throughout while editing
+- Generation of d.ts files for not-built-in plugins and an all-up bundled d.ts for everthing bundled
+- How to get one gulpfile to work with multiple projects and multiple tsconfigs
+- Including 3PP library and d.ts (jquery)
 - Wallaby-based test runner
 
-The project-level incremental builds are particularly nice for complex builds and
-can substantially reduce compilation during development in my experience.
+The information in this document will likely be sparse and, admittedly, at times assumed; it's what I've deduced after
+banging my head against this particular wall for a while...  Caveat emptor!
 
-This readme is still rambling a bit as it discusses some of the things I ran into as well as the inner workings
-of varoius parts of the system.
+### Current Status
+**Working!**  Everything functions as expected.  That said, here are the items at the top of my todo list:
+* Don't copy built-in-plugin d.ts files in dist/typings
+* Update joinPath to use join-path-js.  Use it on line 245 & others.
+  * Related: I'm passing ("src", ["\*\*\\\*.ts"]) instead of ("src", "\*\*\\.ts")
+* I suspect I can use through2.obj() in places where I just need a stream to pass back
+* Make gulpfile watch itself.  https://codepen.io/ScavaJripter/post/how-to-watch-the-same-gulpfile-js-with-gulp
+* When creating the list of files to compile, include all files in project.parentGroup.filesToPrecopyOnce (in their dest folder).  Once that's in place, remove all references to 'commonFiles'
 
-# Installing and running
-
-1. Set up VS Code with the chrome debugging extension
-2. Setup a local web server (I personally prefer [Fenix](http://fenixwebserver.com/))
-    - Note: the port that the project's launch.json uses is 1024; either use that one in Fenix when setting up the server, or pick a different number and update launch.json with that value. e.g.:
-<br/>
-<div style="text-align:center"><img src="http://getduality.com/websiteImages/fenixsetup.png" alt="Duality Preview" width="300"/></a></div>
-  
-3. ```npm install``` in the project root to get dependencies
-<br/>
-<div style="text-align:center"><img src="http://getduality.com/websiteImages/npminstall.png" alt="Installing via NPM"/></a></div>
-
-4. Drop some breakpoints in to ensure that source maps are working as you expect
-5. build and F5.
-6. To see the test runner work, build and then load tests.html
-
-# Why this repo exists
+### The project which spawned this one: Duality
 
 My other (*very* early) project, called 'Duality', is an attempt to bring a Unity-like
 experience to non-Unity (and even non-game) web apps.  As that Typescript project has gotten bigger and bigger, it was getting unwieldy
 to manage; builds taking upwards of 30 seconds, ambient typings not always working, debugging occasionally not working, etc.
 So I spawned off this separate effort to create an optimal (for my purposes) environment.
 
+#### Why this project is structured as it is:
+The Duality environment consists of the following components:
+- Editor
+  - This is the 'meat' of the project and includes everything needed to get a basic Unity-like experience in a webgl app
+  - Apps can include it by including a single bundled "duality.js" file
+- Plugins
+  - Additional functionality can be included via plugins; e.g. I have a plugin that exposes inspectors for editor
+objects, allowing debugging of the editor itself.  This is not something most apps would need, so it's available via a
+separate plugin.
+  - Plugins can be either built-in (included in the duality.js bundle), or included separately into an app
+- Tests
+  - Wallaby-based tests that vet out Editor functionality.
+- Samples
+  - Sample standalone apps that include and demonstrate editor functionality.
+The interesting thing about using Duality as the basis for this build environment is that Duality's structure forces a number of different build types; some components are bundled
+while others arent; some are minimized and some aren't; some have d.ts files generated and some don't; etc.
+The '[Project System](#the-project-system)' section in this document covers some of these differences.
+
+Side note: The project in this repo is not intended to be 'real' - it contains a few source files and projects to test and prove out the build system.
+
 Sneak peak of the Duality project (Duality is the stuff around the cool water demo, which is itself found [here](http://madebyevan.com/webgl-water)):
 
 <div style="text-align:center"><a href="http://getduality.com/websiteImages/dualitypreview.png"><img src="http://getduality.com/websiteImages/dualitypreview.png" alt="Duality Preview" width="400"/></a></div>
 
+# VS Code
+This project is currently built for VS Code only, because that's the environment that I use.
 
+I assume most of this mostly works in other quasi-IDEs like Atom, but I haven't tried it yet.  I'll get to it eventually; but if that (or something else) is your environment of choice and you get it to work, then I'd love to add that in!
 
+Note: I'm likely going to conflate the precise roles of Typescript and VS Code in this document; the lines between them blur at times for me (e.g. around tasks and tsconfig) and I haven't tried to suss out details.  I'll fix any incorrect assumptions over time.
 
+# How to use the build environment
+1. Get VS Code set up with the chrome debugging extension
+2. Setup a local web server (I personally prefer [Fenix](http://fenixwebserver.com/))
+    - Note: the port that launch.json uses is 1024; either use that one in Fenix when setting up the server, or pick a different number and update launch.json with that value. e.g.:
+<br/>
+<div style="text-align:center"><img src="http://getduality.com/websiteImages/fenixsetup.png" alt="Duality Preview" width="300"/></a></div>
+  
+3. npm install to get dependencies
+<br/>
+<div style="text-align:center"><img src="http://getduality.com/websiteImages/npminstall.png" alt="Installing via NPM"/></a></div>
 
-# Overview: Typescript with gulp, gulpfile.js, and tasks
+4. Drop some breakpoints in to ensure that source maps are working as you expect, build, and F5.
+5. To see the test runner work, just load tests.html after building.
+
+# From the top: Using gulp, gulpfile.js, and tasks
 While using the built-in tsc build system works well for relatively simple projects, I prefer gulp for anything more complex.
 I assume grunt works just as well, but gulp is the one I've opted for here.
 
@@ -112,49 +168,57 @@ That said, see the section [Tasks, runSeries and runParallel](#tasks-runseries-a
 * Resource: [Tasks schema on VS Code site](https://code.visualstudio.com/docs/editor/tasks_appendix)
 * Resource: [Why you shouldn't even ask 'can I pass parameters to a task using run-sequence?'](https://github.com/OverZealous/run-sequence/issues/68)
 
-#### Gulpfile.ts and splitting gulpfiles
-***TODO: It's possible to use Typescript for gulpfile but I haven't explored that yet***
+#### Gulpfile.ts
+
+*TODO: Why not gulpfile.ts?  you can actually do this, and the appeal of proper classes here is hard to say no to; but the extra compile step makes me itchy, and I want to wait until everything else is rock-stable before introducing that.*
+
 * Resource: [gulpfile.ts npm plugin](https://www.npmjs.com/package/gulpfile.ts)
 * Resource: [creating a gulpfile using typescript](https://medium.com/@pleerock/create-a-gulpfile-and-write-gulp-tasks-using-typescript-f08edebcac57)
 
-This project opts to separate the build process into multiple files.
+#### Just one 800 line file?  Really?  No desire to, say, split that up into rational components?
+
+*TODO: You can break gulpfile.js apart, but I haven't tackled that yet.*
+
 * Resource: [Splitting a gulpfile into multiple files](http://macr.ae/article/splitting-gulpfile-multiple-files.html)
 
-# The build environment
-
-## Folders
-
-These are the folders that exist or are created by this build environment.
-
-The following folders apply to all build environments
-
-| Folder | Contents |
-| --- |--- |
-| /bld | Default location for built files.  Can be changed in buildSettings.
-| /dist | Default location for final, distributable files.  Can be changed in buildSettings.
-| /gulpBuild | Contains build files included by gulpfile.js
-
-The following folders are specific to the 'duality' project, and demonstrate a variety of build scenarios
-
-| Folder | Contents |
-| --- |--- |
-| /editor | This is the main project
-| /plugins | Contains a collection of 'built-in' and 'non-built-in' projects
-| /samples | Contains a collection of sample applications which include and use Duality.
-| /tests | Contains a collection of tests that demonstrate how to use wallaby to verify functionality of Duality and the plugins.
-
-And finally, the moreExampleBuildEnvs folder includes other examples of how to set up the build environment
-
-## Build-related files
-
-***TODO: buildUtils.js etc***
-
-### buildConfig.js
+# buildConfig.js
 
 This file sits in the root of your build environment, alongside gulpfile.js.  It's loaded at the start of the build process,
 and defines everything about building your project.  **This should be the only file that you have to change**.
 
-## The Project System
+See the buildConfig.js in this repo for an example of how it's used.  Here are the high level concepts:
+
+```
+var buildConfig = {
+    bundle: {
+        // information about the final bundled output.
+        // note: currently required, and currently only supports 1.  need to generalize this.
+    },
+    projectGroups: {
+        project1: {
+            // project definition
+        },
+        project2: {
+            // project definition
+        },
+        etc...
+    },
+
+    settings: {
+        // Contains settings which direct the build process.
+    },
+
+    buildAll: function(...) {
+        // Function that orders the actual build.  
+        // TODO: Funky having it here, but I haven't generalized ordering yet, and don't want specifics of
+        // project ordering to appear in the otherwise app-agnostic gulpfile.js
+    }
+}
+```
+
+Aspects of the above are discussed throughout the rest of this document.
+
+# The Project System
 
 The project system in this build environment supports a variety of self-contained projects as well as dependencies between them.
 
@@ -169,16 +233,37 @@ e.g. whether or not they are libraries, common files used by all of them, etc.  
 
 Here's the structure of ProjectGroup:
 
-***NOTE: This is currently out of date***
-
 | Field | Type | Description |
 | --- | --- | --- |
 | *name* | string | Name of the project group; output in the task header during build process |
+| *isLibrary* | bool | If true, then output is a library; otherwise it's an app.  editor and plugins are libraries and tests and samples are apps.  See buildAppProject and buildLibProject for differences |
 | *tsConfigFile* | string (optional) | The projects in a ProjectGroup can either (a) use a common tsconfig.json file, or (b) use a tsconfig file per project.  If (a), then set this to the location of that file |
 | *filesToPrecopyToAllProjects* | fileCopy[] \(optional) | List of files that should be precopied to all projects within the ProjectGroup fileCopy structure = {src:string, dest: string}.  src is relative to root; dest is relative to each project's path |
 | *filesToPrecopyOnce* | fileCopy[] \(optional) | List of files that should be precopied once before projects are compiled. Example usage: all tests reference the same duality*.d.ts, so copy it once into the tests/typings folder.  NOTE: paths are relative to root |
 | *commonFiles* | string[] \(optional) | List of files that should be including in compilation of all projects in the ProjectGroup.  e.g. All Tests include tests/typings/*.d.ts |
 | *projects* | Project[] | List of Projects within the ProjectGroup |
+
+And here is an example of a ProjectGroup, including Projects within it:
+
+```
+var plugins = {
+    name: "Plugins",
+    isLibrary: true,
+    filesToPrecopyToAllProjects: [{ src: "dist/typings/editor.d.ts", dest: "typings" }],
+    projects: [{
+        name: "debugDualityPlugin",
+        path: "plugins/duality/debugDualityPlugin",
+        aggregateBundle: buildConfig.aggregateBundles.duality,
+    }, {
+        name: "debugDuality2",
+        path: "plugins/duality/debugPlugin2",
+        aggregateBundle: buildConfig.aggregateBundles.duality,
+    }, {
+        name: "threejs",
+        path: "plugins/threeJS",
+    }]
+};
+```
 
 ### Projects
 Projects are the 'meat' of the system.  They come in two varieties; application projects and library projects.  Each project
@@ -186,80 +271,67 @@ is self-contained (but can contain dependencies on other previously-built projec
 
 Structure of Project object:
 
-***NOTE: This is currently out of date***
-
 | Field | Type | Description |
 | --- | --- | --- |
 | *name* | string | Name of the Project
 | *path* | string | Path of the Project relative to root
 | *files* | string[] | List of files to compile; relative to project path.  If unspecified, defaults to '["**/*.ts"]', which == all TS files in the project folder.
 
+#### Library Projects
+Library Projects are projects that are intended to be used by apps.  Details:
+- A Library Project's source files are transpiled into a single bundled output file which is dropped into /dist
+- Both debug and minimized files are output (*-debug.js, *-min.js)
+- Generates definition (*.ts) files and copies them into /dist/typings
 
-## Programmatic API for Project and ProjectGroup creation
-A build configuration can be defined using a JS object, as shown in the simpleLibraryAndApp sample:
+This build environment includes the following ProjectGroups with Library Projects in them:
+- Editor project: Generates editor-debug.js, editor-min.js, and editor.d.ts
+- Plugins project: For each plugin, generates [pluginname]-debug.js, [pluginname]-min.js, and [pluginname].d.ts
 
-```
-var buildConfig = {
-    projectGroups: {
-        // Define the build config for the example library which will be referenced by the example app below.
-        testLibrary: {
-            projects: {
-                testLibrary: {
-                    path: "moreExampleBuildEnvs/simpleLibraryAndApp/testLibrary",
-                    generateTyping: true
-                }
-            }
-        }
-    }
-};
+#### Applications Projects
+Application Projects are standalone apps which leverage the Library Projects. Details:
 
-// Add the example app, which uses the above library
-buildConfig.projectGroups.testApp = {
-    projects: {
-        testApp: {
-            path: "moreExampleBuildEnvs/simpleLibraryAndApp/testApp",
-            // Declare testLibrary as a dependent project so that testLibrary's d.ts and .js files will be copied
-            dependsOn: [buildConfig.projectGroups.testLibrary.projects.testLibrary],
-        }
-    }
-}
-```
+- Applications' source files are transpiled and not bundled; placed next to source files
+  - Intent is to mirror what apps that use Duality will normally do.
+- Only outputs debug .js files for now; no minimized ones (I will revisit that; easy to add.  Just wanted to test ability to differentiate).
+- No definition file is generated
 
-You can also create a build configuration using the BuildConfiguration APIs, as shown in the programmaticBuildConfig sample:
+'Samples' and 'Tests' both contain examples of Application Projects.
 
-```
-var buildConfig = new BuildConfiguration();
+# Folders
+These are the folders that exist or are created by this build environment.
 
-// Add test library project to the build config
-var testLibrary = buildConfig.addProject({
-    name: "testLibrary",
-    path: "moreExampleBuildEnvs/programmaticBuildConfig/testLibrary",
-    generateTyping: true
-});
-
-// Add test app project to the build config.  set dependency on test library.  This drives build order & also
-// copies and includes library's js and d.ts files in compilation and for ambient typing.
-// Note that we are not aggregating the bundles (lib and app) together.  For an example of that, see simpleAggregateBundle sample
-buildConfig.addProject({
-    name: "testApp",
-    path: "moreExampleBuildEnvs/programmaticBuildConfig/testApp",
-    dependsOn: [testLibrary],
-});
-```
+  - /bld
+    - This is where built files for libraries are put.  Built files for apps end up alongside the apps' sourcecode
+  - /dist
+    - This is where final deliverables for the bundle, non-built-in plugins, and all built typings are placed
+  - /editor
+    - This is the main project.  It's a library.
+  - /plugins
+    - Contains a collection of 'built-in' and 'non-built-in' libraries
+    - Built-in plugins are automatically included in the final bundle.  These are plugins that I expect every project will use, so they're "built in" to the bundle.  These could also go in the Editor project, but I've separated them for cleanliness's sake
+    - Non-built in plugins are plugins that I will provide, but not every project will use them, so they aren't included in the bundle.  An app that uses one of these plugins would include the files output into /dist/plugins/<plugin-name>
+  - /samples
+    - Contains a collection of sample applications which include and use Duality.
+    - Each sample has an index.html that can be directly loaded (but your webroot needs to be at the root of this repo's files)
+  - /tests
+    - Contains a collection of tests that demonstrate how to use wallaby to verify functionality of Duality and the plugins.
+    - Contains a single tests.html file that can be directly loaded (but your webroot needs to be at the root of this repo's files)
 
 # Managing and moving files between projects at build time
 
 Projects are inherently self-contained; they define the files within them as well as metadata about the project.  However, there
 are two instances in which Projects reach outside their path to acquire or place files:
 
-## Output code to /bld and /dist
-Typically, 'application' Projects place compiled code alongside the source code to help them be more standalone.  'Library' Projects, however,
-are not normally intended to be standalone; they're intended to be included in applications.  As such, library Projects
-typically place their final distributable files into the /dist folder.
+#### Output Library code to /bld and /dist
+Application Projects place compiled code alongside the source code to help them be more standalone.  Library Projects, however,
+are not intended to be standalone; they're intended to be included in Applications.  As such, Library Projects build their source
+into the /bld folder, and then place their final distributable files into the /dist folder.
 
-The folder for "/bld" and "/dist" can be changed in gulpBuild/buildSettings.js, 'bldPath and distPath'
+/bld holds temporary files which aren't useful outside of debugging/understanding the build process.
 
-## Precopying files
+/dist holds the final files that are intended to be used by applications.
+
+#### Precopying files
 ProjectGroups support copying previously built files into Projects.  This is useful for something like editor.d.ts, which all plugins need to use.
 It needs to be copied after it gets built in an earlier part of the build process.
 
@@ -276,7 +348,7 @@ There are two ways to copy files, both via  fields specified in a ProjectGroup:
   filesToPrecopyOnce: [{ src: "dist/typings/" + bundle.typingFilename, dest: "tests/typings" }]
   ```
 
-## Referencing common files
+##### Referencing common files
 In addition to copying files into all Projects, you can also inject references to them in the ProjectGroup using the ProjectGroup's optional '**commonFiles**' field.  What this specifically
 does is: adds the file to the Project's list of files to compile, but doesn't actually copy the file into the Project's folder.
 This is useful when all Projects in a ProjectGroup reference the same file, and that file doesn't need to be present
@@ -288,31 +360,46 @@ Here's an example from the tests ProjectGroup,
 commonFiles: ["tests/typings/*.d.ts"],
 ```
 
-## Defining dependencies between projects
-
-If a Project is dependent on another project (e.g. an App project that uses a Lib project), then you need to tell
-the build environment to copy (via filesToPrecopy) or reference (va commonFiles) the lib's .js files, and likely copy 
-the lib's d.ts file into the app's folder in order to get ambient typings working.
-
-Instead of the precopy above, you can just specify the dependency in the Project itself, and the build environment
-takes care of copying the lib's files over.  The 'testApp2' sample in this project demonstrates that:
-
-```
-dependsOn: [buildConfig.projectGroups.plugins.projects.threeJS],
-```
+##### When to use which?
+* Do you have a file that needs to be present in all folders for both (a) compilation and (b) ambient typings?
+  - Do you have a separate tsconfig for each Project in the ProjectGroup?
+    - YES: Use ProjectGroup.filesToPrecopyToAllProjects
+    - NO: Use ProjectGroup.filesToPrecopyOnce
+    - Why, you ask? You need to do this due to how ambient typings seem to work; my assumption based on experimentation -
+     Ambient typings are resolved within the folder that has the tsconfig.json and all subfolders, but no parent folders.
+      - The Samples ProjectGroup is an example of per-project tsconfig.json files (so it would ProjectGroup.filesToPrecopyToAllProjects for any d.ts files)
+      - The Tests ProjectGroup  is an example of using a single shared tsconfig.json file between all projects (so it would ProjectGroup.filesToPrecopyOnce for any d.ts files)
+* Do you have a file that needs to be present for compilation by all Projects in a ProjectGroup, but *isn't* in the Projects' folders?
+  * Use ProjectGroup.commonFiles
+  * ***TODO: THIS IS ONLY TEMPORARILY NECESSARY***.  When creating the list of files to compile, I should include all files in project.parentGroup.filesToPrecopyOnce (in their dest folder).
+    * It's in the todo list at top of this file.
 
 # Bundling
+This build environment creates a bundle which includes all projects identified as libraries with aggregateBundle = true.  This bundle
+is the penultimate output of the whole process, containing the editor and all built-in plugins.  It is sufficient by itself, although
+the build environment also outputs non-built-in libraries for optional inclusion by apps.
 
-## Ways to bundle
-Project output is automatically bundled into a single js file.
+The final bundle is placed in /dist.
 
-In addition, ProjectGroups can have all of their projects' outputs bundled into one file.
+## The bundle object
+This provides details about the bundled file that will be generated.  Here's what it looks like:
 
-***TODO: Details***
+```
+// Bundle definition
+var bundle = {
+    baseName: "duality",
+    version: "0.0.1",
+    modifiedBundleCache: {}
+};
+```
 
-Finally, Projects from different ProjectGroups can be bundled via Aggregate Bundles.
+bundle.baseName and bundle.version are used to generate the final output filenames; e.g. with the above, we will get:
 
-***TODO: Details***
+* duality-0.0.1-debug.js
+* duality-0.0.1-min.js
+* duality-0.0.1-d.ts
+
+Ordering of files within the bundle is critical, and covered [here](#ordering-files-for-typescript-build).
 
 ## Internal Namespaces vs External modules
 
@@ -333,54 +420,32 @@ When breaking your project apart into multiple files, you have two approaches to
 
 Reference: [Names and Modules on Typescript site](https://www.typescriptlang.org/docs/handbook/namespaces-and-modules.html)
 
+### Other notes
+
+***TODO: Typescript's --out option.  Didn't work for me; remember why.***
+
 # Build Settings
 The following settings are defined in buildConfig.js:
     
 ```
 buildConfig.settings = {
-
     // Dump extra output during the build process
     verboseOutput: true,
-
-    // Set this to enable compile-time debug checking; e.g. for unexpected situations like missing tsconfig.json file
-    debug: true,
-    debugSettings: {
-        // By default, if a project has no transpiled files in it then we assume error in path.  You can disable that 
-        // error by enabling allowEmptyFolders
-        // allowEmptyFolders: true
-    },
-
-    // Minified builds can strip debug checks from output js for perf.  To indicate that a block should be stripped,
-    // surround it with the following strings.  grep on DEBUGSTART in this project to see an example
-    // These strings are case insensitive; e.g. "// deBUGstart" would match.
-    debugBlockStartText: "// DEBUGSTART",
-    debugBlockEndText: "// DEBUGEND",
 
     // If true, then don't parallelize tasks.  Not something you would usually set; mostly just useful if you
     // are having build issues and want cleaner output.
     forceSerializedTasks: false,
 
     // Set to true to enable project-level incremental builds.  File-level incremental builds are handled by a
-    // persistent 'watch' task, as TSC needs all files in order to compile properly.  Using gulp.watch maintains some state to
+    // persistent 'watch' task, as TSC needs all files to compile properly.  Using gulp.watch maintains some state to
     // reduce compilation time (about 10% in this sample on this machine.  I suspect a 'real' project with more files
     // to compile would see more improvement).
     incrementalBuild: true,
 
     // By default, an incremental build would rebuild if *any* file in a project changes, including d.ts files.
-    // However, you can skip recompilation of a project if *only* dependencies (e.g. d.ts files) have changed.
-    // This field manages that; when false, it says to NOT recompile if only dependencies have changed.  If you're
-    // seeing weird incremental build behavior then try setting this to true, and let me know
-    recompiledOnDTSChanges: false,
-
-    // Defines the folder into which distributable files should be placed.  By default == "./dist"
-    distPath: "./dist",
-
-    // Defines the folder into which temporary built files are placed.  By default == "./bld"
-    bldPath: "./bld",
-
-    // string to add to the name of generated bundle files.  e.g. "-bundle" would result in something like duality-bundle-debug.js.
-    // I'm opting for no suffix.  If you need one (e.g. it generates name conflicts somehow), then change it here
-    bundleSuffix: "",
+    // However, I think that you can skip recompilation of a project if only d.ts files have changed.  This field
+    // manages that.  If you're seeing weird incremental build behavior then try setting this to true, and let me know
+    recompiledOnDTSChanges: false
 };
 ```
 
@@ -512,7 +577,6 @@ might not catch the issue until much later when some other build change changes 
 that dependency isn't present...
 
 # Typings
-
 ***TODO: This section***
 
   - Ambient typings
@@ -526,7 +590,6 @@ that dependency isn't present...
     - Don't have details on this yet.  I've stumbled my way into adding jquery to the project as a test and it works; but the recent (?) move to 'typings' has left a lot of dated info out there on how best to do this.  I need to dig more into this.
 
 # Tasks, runSeries and runParallel
-
 ***TODO: This section***
 
   - &quot;I want to pass parameters to my task rather than have do-thing-project1, do-thing-project2, do-thing-project3&quot;
@@ -544,7 +607,6 @@ that dependency isn't present...
   - Promises and Streams
 
 # tsconfig.json
-
 ***TODO: This section***
 
   - Different approaches; one top level, one per projectgroup (eg the tests projectgroup does this),
