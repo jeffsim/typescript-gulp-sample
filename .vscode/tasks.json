@@ -11,35 +11,9 @@
             "args": [],
             "isBuildCommand": true,
             "isWatching": true
-            /*
-            The intent of the following problemMatcher was to enable clickable links in the output window;
-            however, that isn't currently supported by vscode.  Leaving it in here for when they eventually
-            (hopefully) add it.
-
-            "problemMatcher": [
-                {
-                    "owner": "typescript",
-                    "fileLocation": [
-                        "relative",
-                        "${workspaceRoot}"
-                    ],
-                    "pattern": {
-                        "regexp": "^(.*)\\((\\d+)\\,(\\d+)\\)\\:.(error|warning).(.*)\\:.(.*)$",
-                        "file": 1,
-                        "line": 2,
-                        "column": 3,
-                        "severity": 4,
-                        "message": 6
-                    },
-                    "watching": {
-                        "beginsPattern": "^\\[\\d+:\\d+:\\d+\\] Starting 'build-all....$",
-                        "endsPattern": "^\\[\\d+:\\d+:\\d+\\] Finished 'build-all'(.*)$"
-                    }
-                }
-            ]*/
         },
         {
-            "taskName": "build-all",
+            "taskName": "rebuild-all",
             "args": [],
             "isBuildCommand": true,
             "isWatching": false,
@@ -48,7 +22,7 @@
             ]
         },
         {
-            "taskName": "rebuild-all",
+            "taskName": "build-all",
             "args": [],
             "isBuildCommand": true,
             "isWatching": false,
