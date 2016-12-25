@@ -11,7 +11,7 @@ var concat = require("gulp-concat"),
     tsc = require("gulp-typescript"),
     through = require('through2'),
     uglify = require("gulp-uglify");
-    
+
 
 var buildSettings = require("./buildSettings");
 
@@ -511,13 +511,29 @@ var bu = buildUtils = {
         buildConfig.bundlesInitialized = true;
     },
 
+    // For build config debugging purposes; defines the set of required fields on a bundle; if any are missing then we throw an error
+    requiredBundleFields: ["name", "version"],
+
+    // For build config debugging purposes; defines the set of optional fields on a bundle
+    // if any fields other than (requiredBundleFields + optionalBundleFields) are present on a bundle then we throw an error
+    optionalBundleFields: ["generateCombinedTyping"],
+
     finishInitializingBundle: function (bundle) {
         if (bundle.initialized)
             return bundle;
 
         var bundleNameVer = bundle.name;
-        if (!bundleNameVer)
-            throw Error("Must specify bundle name");
+
+        if (buildSettings.debug) {
+            // do various checks to validate the config file
+            // verify required fields are present, and only fields in (requiredBundleFields + optionalBundleFields) are present
+            for (var field of bu.requiredBundleFields)
+                bu.assert(bundle[field], "Required bundle field '" + field + "' missing on bundle '" + bundle.name + "'");
+            for (var field in bundle) {
+                var fieldAllowed = bu.requiredBundleFields.indexOf(field) != -1 || bu.optionalBundleFields.indexOf(field) != -1;
+                bu.assert(fieldAllowed, "Unrecognized field '" + field + "' specified on bundle '" + bundle.name + "'");
+            }
+        }
 
         // Include version in the name if specified in the bundle
         if (bundle.version)
@@ -540,6 +556,21 @@ var bu = buildUtils = {
         return bundle;
     },
 
+    // For build config debugging purposes; defines the set of required fields on a Project; if any are missing then we throw an error
+    requiredProjectFields: ["path"],
+
+    // For build config debugging purposes; defines the set of optional fields on a Project
+    // if any fields other than (requiredProjectFields + optionalProjectFields) are present on a Project then we throw an error
+    optionalProjectFields: ["name", "dependsOn", "files", "extraFilesToBundle", "filesToClean", "aggregateBundle", "generateTyping", "outputFolder"],
+
+    // For build config debugging purposes; defines the set of required fields on a ProjectGroup; if any are missing then we throw an error
+    requiredProjectGroupFields: [],
+
+    // For build config debugging purposes; defines the set of optional fields on a ProjectGroup
+    // if any fields other than (requiredProjectGroupFields + optionalProjectGroupFields) are present on a ProjectGroup then we throw an error
+    optionalProjectGroupFields: ["name", "filesToClean", "filesToPrecopyToAllProjects", "projectDefaults", "projectRootFolder", "projects",
+        "tsConfigFile", "commonFiles", "bundleProjectsTogether", "filesToPrecopyOnce"],
+
     finishInitializingProjects: function (buildConfig, buildProjectGroup, createAggregateBundle) {
 
         // If the buildConfig.js didn't complete initialization of any bundles, then do so automatically here.  A more 
@@ -551,6 +582,15 @@ var bu = buildUtils = {
             var projectGroup = buildConfig.projectGroups[projectGroupId];
             if (projectGroup.name === undefined)
                 projectGroup.name = projectGroupId;
+            if (buildSettings.debug) {
+                // verify required fields are present, and only fields in (requiredProjectGroupFields + optionalProjectGroupFields) are present
+                for (var field of bu.requiredProjectGroupFields)
+                    bu.assert(projectGroup[field], "Required field '" + field + "' missing on ProjectGroup '" + projectGroup.name + "'");
+                for (var field in projectGroup) {
+                    var fieldAllowed = bu.requiredProjectGroupFields.indexOf(field) != -1 || bu.optionalProjectGroupFields.indexOf(field) != -1;
+                    bu.assert(fieldAllowed, "Unrecognized field '" + field + "' specified on ProjectGroup '" + projectGroup.name + "'");
+                }
+            }
 
             if (buildSettings.debug) {
                 // If ProjectGroup specified a tsconfig.json file for all projects within it, then verify tsconfig.json file is present
@@ -561,11 +601,21 @@ var bu = buildUtils = {
             for (var projectId in projectGroup.projects) {
                 var project = projectGroup.projects[projectId];
 
-                // Associate the Project with the ProjectGroup
-                project.projectGroup = projectGroup;
-
                 if (!project.name)
                     project.name = projectId;
+
+                if (buildSettings.debug) {
+                    // verify required fields are present, and only fields in (requiredProjectFields + optionalProjectFields) are present
+                    for (var field of bu.requiredProjectFields)
+                        bu.assert(project[field], "Required field '" + field + "' missing on Project '" + project.name + "'");
+                    for (var field in project) {
+                        var fieldAllowed = bu.requiredProjectFields.indexOf(field) != -1 || bu.optionalProjectFields.indexOf(field) != -1;
+                        bu.assert(fieldAllowed, "Unrecognized field '" + field + "' specified on Project '" + project.name + "'");
+                    }
+                }
+
+                // Associate the Project with the ProjectGroup
+                project.projectGroup = projectGroup;
 
                 // All projects must specify a path
                 if (!project.path)
@@ -624,7 +674,6 @@ var bu = buildUtils = {
 
                 if (buildSettings.debug) {
                     // do various checks to validate the config file
-
                     // if projectgroup didn't specify a tsconfig.json file for all projects in it, then verify that this project's
                     // tsconfig.json file is in the project root
                     if (!projectGroup.tsConfigFile)
@@ -636,18 +685,21 @@ var bu = buildUtils = {
                         project.files.forEach((fileGlob) => numFiles += glob.sync(fileGlob).length);
                         bu.assert(numFiles > 0, "No .ts files found for project '" + projectId + "'.  If this is expected behavior, then set buildSettings.debug.allowEmptyFolders:true");
                     }
+
+                    // If dependsOn is specified, then ensure dependent projects exists
+                    if (project.dependsOn)
+                        project.dependsOn.forEach((dependency) => bu.assert(dependency, "Project specified in dependsOn doesn't exist for project '" + project.name + "'"));
                 }
             }
         }
 
-        // IF the buildConfig doesn't have a buildAll function defined, then create one now based around dependenies
+        // If the buildConfig doesn't have a buildAll function defined, then create one now based around dependencies
         if (!buildConfig.buildAll)
             bu.buildProjectDependencyGraph(buildConfig);
 
         // Return the config to enable chaining
         return buildConfig;
     },
-
 
     // build dependency graph of ProjectGroups within the specified buildConfig. Uses basic depth-first topo sort and
     // compares 'project.dependsOn: object[]' values.
