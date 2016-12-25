@@ -506,25 +506,18 @@ var bu = buildUtils = {
         if (buildConfig.bundlesInitialized)
             return;
 
-        // Generate Aggregate Bundles' output file names; these include version stamp if specified.  We need to do
-        // this now as some projects reference the bundle names when copying files
-        // TODO: possible to generalize?
-        // Example of formatting: 'duality-0.1.1.debug.js'
         for (var bundleName in buildConfig.aggregateBundles)
             buildConfig.aggregateBundles[bundleName] = bu.finishInitializingBundle(buildConfig.aggregateBundles[bundleName]);
         buildConfig.bundlesInitialized = true;
     },
 
-    finishInitializingBundle: function (bundle, project) {
+    finishInitializingBundle: function (bundle) {
         if (bundle.initialized)
             return bundle;
 
-        // Bundle's base name is either defined, or is == containing project's name (if any)
-        var bundleNameVer = bundle.name || project.name;
+        var bundleNameVer = bundle.name;
         if (!bundleNameVer)
-            throw Error("Must specify name on either bundle or containing project");
-
-        bundle.project = project;
+            throw Error("Must specify bundle name");
 
         // Include version in the name if specified in the bundle
         if (bundle.version)

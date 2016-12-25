@@ -123,7 +123,7 @@ gulp.task("build-all", function () {
     // Do an incremental build at the project-level
     bu.incrementalBuild = true;
 
-    return bu.buildAll();
+    return bu.buildAll(buildConfig);
 });
 
 // Watches; also enables incremental builds.  You can just run this task and let it handle things
