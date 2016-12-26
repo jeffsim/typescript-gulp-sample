@@ -456,10 +456,22 @@ var bu = buildUtils = {
             // Copy any dependent projects
             if (project.dependsOn)
                 for (var dependentProject of project.dependsOn) {
-                    var libSrc = bu.joinPath(dependentProject.buildFolder, "**/*.js")
-                    var libDest = bu.joinPath(project.path, "lib");
-                    var typingSrc = bu.joinPath(dependentProject.buildFolder, "typings/*.d.ts")
-                    var typingDest = bu.joinPath(project.path, "typings");
+                    let libSrc = bu.joinPath(dependentProject.buildFolder, "**/*.js")
+                    let libDest = bu.joinPath(project.path, "lib");
+                    let typingSrc = bu.joinPath(dependentProject.buildFolder, "typings/*.d.ts")
+                    let typingDest = bu.joinPath(project.path, "typings");
+
+                    if (buildSettings.debugSettings && !buildSettings.debugSettings.allowEmptyFolders) {
+                        // verify that there is something in the lib folder
+                        var numFiles = glob.sync(libSrc).length;
+                        bu.assert(numFiles > 0, "No lib files found for dependent project '" + dependentProject.name +
+                            "' in folder '" + dependentProject.buildFolder + "'.  If this is expected behavior, then set buildSettings.debug.allowEmptyFolders:true");
+                        
+                        // verify there is something in the typing folder
+                        numFiles = glob.sync(typingSrc).length;
+                        bu.assert(numFiles > 0, "No typing found for dependent project '" + dependentProject.name +
+                            "' in folder '" + dependentProject.buildFolder + "/typing'.  If this is expected behavior, then set buildSettings.debug.allowEmptyFolders:true");
+                    }
                     buildActions.push(() => bu.copyFile(libSrc, libDest));
                     buildActions.push(() => bu.copyFile(typingSrc, typingDest));
                 }
