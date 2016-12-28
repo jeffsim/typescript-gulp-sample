@@ -130,6 +130,9 @@ gulp.task("rebuild-all", function () {
 gulp.task("build-all", () => buildAll());
 
 function buildAll() {
+    // clear the buildCancelled flag in case a previous build was cancelled.
+    bu.buildCancelled = false;
+    
     globals.isBuilding = true;
     if (globals.isFirstBuild) {
         bu.log("== First build; complete build will be performed ==");
@@ -149,6 +152,9 @@ function buildAll() {
 // a new build-all if so.
 function onBuildCompleted() {
     globals.isBuilding = false;
+    if (bu.buildCancelled)
+        console.log(bu.getTimeString(new Date()) + " Build cancelled");
+    
     if (globals.rebuildWhenDoneBuilding) {
         globals.rebuildWhenDoneBuilding = false;
         console.log(" ");
@@ -161,7 +167,7 @@ function onBuildCompleted() {
 // Watches; also enables incremental builds.
 gulp.task('watch', function () {
     // Since this is always running, limit output to errors
-    // bu.verboseOutput = false;
+    // buildSettings.verboseOutput = false;
 
     // Because we don't maintain information about files between Task runs, our modifiedCache is always empty
     // at the start, and thus we'll rebuild everything.  Track that it's the first build so that we can output it.
@@ -174,7 +180,7 @@ gulp.task('watch', function () {
         "!**/*.d.ts",
         "!dist",
         "!bld"
-    ], (v) =>  {
+    ], () =>  {
         // If this is the filechange that triggers the build, then start the build
         if (!globals.isBuilding)
             return buildAll();
@@ -184,9 +190,12 @@ gulp.task('watch', function () {
             return;
 
         // trigger a rebuild when done building
-        console.log("- File changed while building; will restart build again when done.");
+        console.log("- File changed while building; will restart build again when done.  Will attempt to cancel the rest of the current build...");
         globals.rebuildWhenDoneBuilding = true;
-    }).on("end", () => console.log("end"));
+
+        // Try to cancel the current build.  It won't stop the current 'low-level' task, but can stop subsequent project builds...
+        bu.buildCancelled = true;
+    });
 
     // If build settings change then reload them
     gulp.watch(["gulpBuild/buildSettings.js"], ["load-build-settings"]);

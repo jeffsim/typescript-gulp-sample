@@ -19,6 +19,7 @@ var bu = buildUtils = {
 
     // For a single given project, build it, then minify it, and then generate a d.ts file for it (as needed)
     buildAndMinifyProject: function (project) {
+        
         // Check for incremental build and nothing changed; if that's the case, then emit "no build needed" and skip it
         // Returns a stream object that can be returned directly.
         var skipStream = bu.checkCanSkipBuildProject(project);
@@ -47,6 +48,10 @@ var bu = buildUtils = {
     //      bundle name = project.[debug|min]BundleFilename
     //      Bundle output to project.outputFolder
     buildProject: function (project) {
+        // testing - cancel all project builds if a file has changed
+        if (bu.buildCancelled)
+            return bu.getCompletedStream();
+        
         var taskTracker = new bu.TaskTracker("buildProject", project);
         var projectFolderName = bu.joinPath(project.path, "/");
         var ts = tsc.createProject(project.projectGroup.tsConfigFile || bu.joinPath(projectFolderName, "tsconfig.json"));
@@ -95,6 +100,10 @@ var bu = buildUtils = {
     //  Uses the Project's already-built files as source files
     //  Generates "*-min.js" output files
     minifyProject: function (project) {
+        // testing - cancel all project builds if a file has changed
+        if (bu.buildCancelled)
+            return bu.getCompletedStream();
+        
         var taskTracker = new bu.TaskTracker("minifyProject", project);
 
         // Minify all the built bundle js files in the built folder
@@ -132,6 +141,10 @@ var bu = buildUtils = {
     // Generates .d.ts definition file for a single project
     buildDefinitionFile: function (project) {
 
+        // testing - cancel all project builds if a file has changed
+        if (bu.buildCancelled)
+            return bu.getCompletedStream();
+        
         // Only generate d.ts files if so desired
         if (!project.generateTyping)
             return bu.getCompletedStream();
@@ -154,6 +167,12 @@ var bu = buildUtils = {
     },
     // Builds a project group (e.g. editor, plugins, samples, or tests)
     buildProjectGroup: function (projectGroup) {
+
+        // testing - cancel all project builds if a file has changed
+        if (bu.buildCancelled) {
+            bu.log("Cancelling project build...");
+            return bu.getCompletedStream();
+        }
         bu.outputTaskHeader("Build " + projectGroup.name);
         return bu.runSeries([
             () => bu.precopyRequiredFiles(projectGroup),
@@ -178,6 +197,9 @@ var bu = buildUtils = {
     },
 
     buildAll: function (buildConfig) {
+        // Always output that we're starting a build, regardless of buildSettings.verboseOutput
+        console.log(bu.getTimeString(new Date()) + " Starting buildAll...");
+
         // If buildConfig contains a custom buildAll then use it.  Used when a buildConfig does more complex building
         // If no custom buildAll then just build all of the ProjectGroups in order
         if (buildConfig.buildAll)
@@ -313,6 +335,11 @@ var bu = buildUtils = {
         var stream = through();
         var i = 0, toRun = functions.length;
         var run = () => {
+
+            // testing - cancel all project builds if a file has changed
+            if (bu.buildCancelled)
+                i == toRun;
+        
             if (i == toRun)
                 stream.resume().end();
             else {
@@ -766,6 +793,10 @@ var bu = buildUtils = {
     },
 
     createAggregateBundle: function (bundle, buildConfig) {
+        // testing - cancel all project builds if a file has changed
+        if (bu.buildCancelled)
+            return bu.getCompletedStream();
+        
         bu.outputTaskHeader("Build Bundle");
 
         // If none of the files that we're going to bundle have changed then don't build bundle.
@@ -797,6 +828,10 @@ var bu = buildUtils = {
         return bu.buildAggregateBundle(bundle, sourceFiles, false, "Build bundled JS", bundle.outputFolder);
     },
     buildProjectGroupBundle: function (projectGroup) {
+        // testing - cancel all project builds if a file has changed
+        if (bu.buildCancelled)
+            return bu.getCompletedStream();
+        
         var taskTracker = new bu.TaskTracker("buildProjectGroupBundle (" + projectGroup.name + ")");
         if (!projectGroup.bundleProjectsTogether) {
             // project group not bundled together, so nothing to do here
