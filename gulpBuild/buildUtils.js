@@ -501,7 +501,7 @@ var bu = buildUtils = {
             // Copy any dependent projects
             if (project.dependsOn)
                 for (var dependentProject of project.dependsOn) {
-                    let libSrc = bu.joinPath(dependentProject.buildFolder, "**/*.js")
+                    let libSrc = bu.joinPath(dependentProject.buildFolder, "**/*.js*")
                     let libDest = bu.joinPath(project.path, "lib");
                     let typingSrc = bu.joinPath(dependentProject.buildFolder, "typings/*.d.ts")
                     let typingDest = bu.joinPath(project.path, "typings");
