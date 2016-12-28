@@ -13,6 +13,7 @@
     "gulp": "^3.9.1",
     "gulp-concat": "^2.6.0",
     "gulp-if": "^2.0.2",
+    "gulp-plumber": "^1.1.0",
     "gulp-preservetime": "^1.2.1",
     "gulp-rename": "^1.2.2",
     "gulp-sourcemaps": "^2.2.0",

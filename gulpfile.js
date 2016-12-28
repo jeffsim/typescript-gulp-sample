@@ -130,9 +130,9 @@ gulp.task("rebuild-all", function () {
 gulp.task("build-all", () => buildAll());
 
 function buildAll() {
-    // clear the buildCancelled flag in case a previous build was cancelled.
-    bu.buildCancelled = false;
-    
+    // Initialize the build process; clear previous errors, etc
+    bu.initialize();
+
     globals.isBuilding = true;
     if (globals.isFirstBuild) {
         bu.log("== First build; complete build will be performed ==");
@@ -154,7 +154,8 @@ function onBuildCompleted() {
     globals.isBuilding = false;
     if (bu.buildCancelled)
         console.log(bu.getTimeString(new Date()) + " Build cancelled");
-    
+    else if (bu.numCompileErrors > 0)
+        console.log(bu.getTimeString(new Date()) + " Build completed, but with " + bu.numCompileErrors + " errors");
     if (globals.rebuildWhenDoneBuilding) {
         globals.rebuildWhenDoneBuilding = false;
         console.log(" ");
@@ -180,7 +181,7 @@ gulp.task('watch', function () {
         "!**/*.d.ts",
         "!dist",
         "!bld"
-    ], () =>  {
+    ], () => {
         // If this is the filechange that triggers the build, then start the build
         if (!globals.isBuilding)
             return buildAll();

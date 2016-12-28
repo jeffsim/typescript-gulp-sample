@@ -5,6 +5,7 @@ var concat = require("gulp-concat"),
     glob = require("glob"),
     gulp = require("gulp"),
     gulpIf = require("gulp-if"),
+    plumber = require("gulp-plumber"),
     preservetime = require("gulp-preservetime"),
     rename = require("gulp-rename"),
     sourcemaps = require("gulp-sourcemaps"),
@@ -16,6 +17,12 @@ var concat = require("gulp-concat"),
 var buildSettings = require("./buildSettings");
 
 var bu = buildUtils = {
+
+    // Called before each compile starts.
+    initialize: function () {
+        bu.buildCancelled = false;
+        bu.numCompileErrors = 0;
+    },
 
     // For a single given project, build it, then minify it, and then generate a d.ts file for it (as needed)
     buildAndMinifyProject: function (project) {
@@ -79,6 +86,10 @@ var bu = buildUtils = {
             // Initialize sourcemap generation
             .pipe(sourcemaps.init())
 
+            // track if errors occurred
+            .pipe(plumber({ errorHandler: bu.caughtCompileError }))
+
+
             // Do the actual transpilation from Typescript to Javascript.
             .pipe(ts())
 
@@ -112,6 +123,9 @@ var bu = buildUtils = {
             // Initialize Sourcemap generation, telling it to load existing sourcemap (from the already-built *-debug.js file(s))
             .pipe(sourcemaps.init({ loadMaps: true }))
 
+            // track if errors occurred
+            .pipe(plumber({ errorHandler: bu.caughtCompileError }))
+
             // Strip //debugstart and //debugend and everything in between from -min builds.
             .pipe(bu.stripDebugStartEnd())
 
@@ -136,6 +150,11 @@ var bu = buildUtils = {
 
             // Output end of task
             .on("end", () => taskTracker.end())
+    },
+
+    caughtCompileError: function (err) {
+        bu.numCompileErrors++;
+        this.emit('end');
     },
 
     // Generates .d.ts definition file for a single project
