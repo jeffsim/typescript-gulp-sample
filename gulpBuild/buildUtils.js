@@ -299,6 +299,12 @@ var bu = buildUtils = {
         return bu.getCompletedStream();
     },
 
+    // gulpfile.js watches for changes to buildSettings.js and reloads them when the file changes; this file caches its
+    // own copy, so gulpfile calls this to update it.
+    updateBuildSettings(newSettings) {
+        buildSettings = newSettings;
+    },
+
     // Runs in order a series of functions which return streams or promises.  Does not call function N until function (N-1)
     // has reached the end of its stream; denoted by the stream triggering the "end" event.  Returns a stream.
     // NOTE: This is likely a pretty fragile function and doesn't support myriad realities of streams and promises.  Works
@@ -407,6 +413,12 @@ var bu = buildUtils = {
             console.log(string);
     },
 
+    // requireUncached - allows runtime reloading of required modules; e.g. when buildSEttings changes
+    requireUncached: function (module) {
+        delete require.cache[require.resolve(module)]
+        return require(module)
+    },
+
     // strip // DEBUGSTART, // DEBUGEND, and everything in-between them
     stripDebugStartEnd: function () {
         var bu = this;
@@ -466,7 +478,7 @@ var bu = buildUtils = {
                         var numFiles = glob.sync(libSrc).length;
                         bu.assert(numFiles > 0, "No lib files found for dependent project '" + dependentProject.name +
                             "' in folder '" + dependentProject.buildFolder + "'.  If this is expected behavior, then set buildSettings.debug.allowEmptyFolders:true");
-                        
+
                         // verify there is something in the typing folder
                         numFiles = glob.sync(typingSrc).length;
                         bu.assert(numFiles > 0, "No typing found for dependent project '" + dependentProject.name +

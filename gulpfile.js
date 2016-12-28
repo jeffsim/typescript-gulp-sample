@@ -2,7 +2,8 @@
 
 // Load NPM modules
 var del = require("del"),
-    gulp = require("gulp");
+    gulp = require("gulp"),
+    gulpWatch = require("gulp-watch");
 
 // Load build support files
 var bu = require("./gulpBuild/buildUtils"),
@@ -89,9 +90,9 @@ function clean() {
             if (project.dependsOn) {
                 project.dependsOn.forEach((dependency) => {
                     // Get the list of files that were copied over from the dependent project into this project's ./lib
-                    // folder and add them
-                    filesToDelete.push(bu.joinPath(project.path, "lib", dependency.debugBundleFilename));
-                    filesToDelete.push(bu.joinPath(project.path, "lib", dependency.minBundleFilename));
+                    // folder and add them.  Include "*" to get .js.map as well
+                    filesToDelete.push(bu.joinPath(project.path, "lib", dependency.debugBundleFilename + "*"));
+                    filesToDelete.push(bu.joinPath(project.path, "lib", dependency.minBundleFilename + "*"));
 
                     // Add the dependent project's dts file (if any)
                     if (dependency.generateTyping)
@@ -111,6 +112,7 @@ function clean() {
 
 // Does a complete rebuild
 gulp.task("rebuild-all", function () {
+    globals.isBuilding = true;
     if (bu.forceSerializedTasks)
         bu.log("== Forcing serialized tasks ==");
 
@@ -121,11 +123,14 @@ gulp.task("rebuild-all", function () {
     return bu.runSeries([
         () => clean(),
         () => bu.buildAll(buildConfig)
-    ]);
+    ]).on("end", () => onBuildCompleted());
 });
 
 // Builds everything (w/o cleaning first)
-gulp.task("build-all", function () {
+gulp.task("build-all", () => buildAll());
+
+function buildAll() {
+    globals.isBuilding = true;
     if (globals.isFirstBuild) {
         bu.log("== First build; complete build will be performed ==");
         globals.isFirstBuild = false;
@@ -137,14 +142,23 @@ gulp.task("build-all", function () {
     // Do an incremental build at the project-level
     bu.incrementalBuild = true;
 
-    return bu.buildAll(buildConfig);
-});
+    return bu.buildAll(buildConfig).on("end", () => onBuildCompleted());
+}
 
-// Watches; also enables incremental builds.  You can just run this task and let it handle things
-// It does do a build-on-save which isn't exactly what I wanted to enable here (I'd prefer in this task to just track
-// dirty files and pass that list on to build-all when a build task is started).  Should work as-is though.
-// NOTE: buildConfig.settings.incrementalBuild enables project-level incremental builds; it skips entire projects if nothing in
-// them has changed
+// Called when build-all or rebuild-all are finished; checks if any files changed during build and triggers
+// a new build-all if so.
+function onBuildCompleted() {
+    globals.isBuilding = false;
+    if (globals.rebuildWhenDoneBuilding) {
+        globals.rebuildWhenDoneBuilding = false;
+        console.log(" ");
+        console.log("----- Restarting build-all due to filechange during build");
+        console.log(" ");
+        return buildAll();
+    }
+}
+
+// Watches; also enables incremental builds.
 gulp.task('watch', function () {
     // Since this is always running, limit output to errors
     // bu.verboseOutput = false;
@@ -153,11 +167,35 @@ gulp.task('watch', function () {
     // at the start, and thus we'll rebuild everything.  Track that it's the first build so that we can output it.
     globals.isFirstBuild = true;
 
-    // Watch for changes to ts files; when they occur, run the 'build-all' task
-    gulp.watch([
+    // Watch for changes to .ts files; when they occur, run the 'build-all' task
+    // NOTE: Using gulp-watch instead of gulp.watch, as I'm not getting an 'end' event from the latter.  I could be using it wrong...
+    gulpWatch([
         "**/*.ts",
         "!**/*.d.ts",
         "!dist",
         "!bld"
-    ], ["build-all"])
+    ], (v) =>  {
+        // If this is the filechange that triggers the build, then start the build
+        if (!globals.isBuilding)
+            return buildAll();
+
+        // If we've already previously triggered the need to rebuild during current build, then don't re-output that we'll rebuild
+        if (globals.rebuildWhenDoneBuilding)
+            return;
+
+        // trigger a rebuild when done building
+        console.log("- File changed while building; will restart build again when done.");
+        globals.rebuildWhenDoneBuilding = true;
+    }).on("end", () => console.log("end"));
+
+    // If build settings change then reload them
+    gulp.watch(["gulpBuild/buildSettings.js"], ["load-build-settings"]);
+});
+
+gulp.task('load-build-settings', function () {
+    // Reload our buildSettings.
+    buildSettings = bu.requireUncached("./buildSettings");
+
+    // Also update the version cached in buildUtils
+    bu.updateBuildSettings(buildSettings);
 });
