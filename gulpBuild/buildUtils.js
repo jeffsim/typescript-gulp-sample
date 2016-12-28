@@ -693,9 +693,13 @@ var bu = buildUtils = {
                 if (project.buildFolder === undefined)
                     project.buildFolder = bu.joinPath(project.buildRootFolder, project.path)
 
-                // By default, project output files are copied into the project's folder
+                // By default, project output files are output to /bld.  I opt to default to that because if we drop
+                // the bundled output file into the project's path, AND tsconfig's allowJs = true, then you will get
+                // duplicate identifier warnings because vscode/typescript see both the source file (e.g. Label.ts)
+                // and the output file (editor-bundle.js) and they're unfortunately smart enough to extract the ambient
+                // typing from both.
                 if (project.outputFolder === undefined)
-                    project.outputFolder = project.path;
+                    project.outputFolder = buildSettings.bldPath;
 
                 // Ensure outputFolder is rooted in build root folder, not file system root folder
                 project.outputFolder = bu.joinPath(".", project.outputFolder);
