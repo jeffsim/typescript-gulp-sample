@@ -1,3 +1,5 @@
+"use strict";
+
 var concat = require("gulp-concat"),
     dtsGenerator = require("dts-generator"),
     eventStream = require("event-stream"),
@@ -16,7 +18,7 @@ var concat = require("gulp-concat"),
 
 var buildSettings = require("./buildSettings");
 
-var bu = buildUtils = {
+var bu = {
 
     // Called before each compile starts.
     initialize: function () {
@@ -154,6 +156,10 @@ var bu = buildUtils = {
 
     caughtCompileError: function (err) {
         bu.numCompileErrors++;
+        if (buildSettings.stopBuildOnError) {
+            bu.buildCancelled = true;
+            bu.log("Stopping build...");
+        }
         this.emit('end');
     },
 
@@ -184,6 +190,10 @@ var bu = buildUtils = {
         }).catch((ex) => {
             bu.logError("Error (" + ex.name + ") in dtsGenerator: " + ex.message);
             stream.resume().end();
+            if (buildSettings.stopBuildOnError) {
+                buildCancelled = true;
+                bu.log("Stopping build...");
+            }
             taskTracker.end();
         });
 
@@ -960,4 +970,4 @@ var bu = buildUtils = {
     }
 }
 
-module.exports = buildUtils;
+module.exports = bu;
