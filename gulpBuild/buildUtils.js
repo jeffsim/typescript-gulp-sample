@@ -181,7 +181,12 @@ var bu = buildUtils = {
         }).then(() => {
             stream.resume().end();
             taskTracker.end();
+        }).catch((ex) => {
+            bu.logError("Error (" + ex.name + ") in dtsGenerator: " + ex.message);
+            stream.resume().end();
+            taskTracker.end();
         });
+
         return stream;
     },
     // Builds a project group (e.g. editor, plugins, samples, or tests)
@@ -218,7 +223,7 @@ var bu = buildUtils = {
     buildAll: function (buildConfig) {
         // Always output that we're starting a build, regardless of buildSettings.verboseOutput
         console.log(" ");
-        console.log(bu.getTimeString(new Date()) + " Starting buildAll...");
+        var taskTracker = new bu.TaskTracker("Buildall", null, true);
 
         // If buildConfig contains a custom buildAll then use it.  Used when a buildConfig does more complex building
         // If no custom buildAll then just build all of the ProjectGroups in order
@@ -231,7 +236,10 @@ var bu = buildUtils = {
                 actions.push(bu.buildProjectGroup(buildConfig.projectGroups[projectGroup]));
             buildAction = bu.runSeries(actions);
         }
-        return buildAction.on("end", () => console.log(bu.getTimeString(new Date()) + " Finished buildAll."));
+        return buildAction.on("end", () => {
+            console.log(" ");
+            taskTracker.end();
+        });
     },
 
 
@@ -460,9 +468,15 @@ var bu = buildUtils = {
     },
 
     // outputs a string to the console IFF verboseOutput is true
-    log: function (string) {
-        if (buildSettings.verboseOutput)
+    log: function (string, forceOutput = false) {
+        if (buildSettings.verboseOutput || forceOutput)
             console.log(string);
+    },
+
+    logError: function (string) {
+        bu.log(" ");
+        bu.log(string, true);
+        bu.log(" ");
     },
 
     // requireUncached - allows runtime reloading of required modules; e.g. when buildSEttings changes
@@ -549,14 +563,14 @@ var bu = buildUtils = {
     },
 
     // Outputs task start and end info to console, including task run time.
-    TaskTracker: function (taskName, project) {
-        if (buildSettings.verboseOutput) {
+    TaskTracker: function (taskName, project, forceOutput = false) {
+        if (buildSettings.verboseOutput || forceOutput) {
             var startTime = new Date();
             var startTimeStr = bu.getTimeString(startTime);
             var outStr = startTimeStr + " Starting " + taskName;
             if (project)
                 outStr += " (" + project.name + ")";
-            bu.log(outStr);
+            bu.log(outStr, forceOutput);
         }
 
         return {
@@ -567,9 +581,9 @@ var bu = buildUtils = {
                 var delta = (endTime - startTime) / 1000;
                 var endTimeStr = bu.getTimeString(endTime);
                 if (project)
-                    bu.log(endTimeStr + " Finished " + taskName + " (" + project.name + ") after " + delta + " s");
+                    bu.log(endTimeStr + " Finished " + taskName + " (" + project.name + ") after " + delta + " s", forceOutput);
                 else
-                    bu.log(endTimeStr + " Finished " + taskName + " after " + delta + " s");
+                    bu.log(endTimeStr + " Finished " + taskName + " after " + delta + " s", forceOutput);
             }
         };
     },
