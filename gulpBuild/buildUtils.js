@@ -22,8 +22,15 @@ var bu = {
 
     // Called before each compile starts.
     initialize: function () {
+
+        // Whether or not we've already cancelled the current build (due to either file changed or compile error)
         bu.buildCancelled = false;
+
+        // Keep track of the number of compiler errors in order to report them at the end of the build log
         bu.numCompileErrors = 0;
+
+        // Avoid spamming 'stopping build...' messages
+        bu.warnedStoppingBuild = false;
     },
 
     // For a single given project, build it, then minify it, and then generate a d.ts file for it (as needed)
@@ -156,8 +163,9 @@ var bu = {
 
     caughtCompileError: function (err) {
         bu.numCompileErrors++;
-        if (buildSettings.stopBuildOnError) {
+        if (buildSettings.stopBuildOnError && ! bu.warnedStoppingBuild) {
             bu.buildCancelled = true;
+            bu.warnedStoppingBuild = true;
             bu.log("Stopping build...");
         }
         this.emit('end');
