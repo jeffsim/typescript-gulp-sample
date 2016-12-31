@@ -154,8 +154,10 @@ function onBuildCompleted() {
     globals.isBuilding = false;
     if (bu.buildCancelled)
         console.log(bu.getTimeString(new Date()) + " Build cancelled");
-    else if (bu.numCompileErrors > 0)
+    else if (bu.numCompileErrors > 0) {
         console.log(bu.getTimeString(new Date()) + " Build completed, but with " + bu.numCompileErrors + " errors");
+        console.log(bu.errorList);
+    }
     if (globals.rebuildWhenDoneBuilding) {
         globals.rebuildWhenDoneBuilding = false;
         console.log(" ");
