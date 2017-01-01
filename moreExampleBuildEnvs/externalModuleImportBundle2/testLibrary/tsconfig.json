@@ -1,0 +1,21 @@
+{
+    "compilerOptions": {
+        "target": "es5",
+        "sourceMap": true,
+        "skipLibCheck": true,
+
+        // Valid setup 1; uses buildConfig & namespaces
+        // NOTE: In this setup, If you don't specify 'out', then tsc won't automagically order your files based on 'reference'/import/etc
+        // ... so derived classes can appear before base classes in the output bundle, which === crash.
+        // NOTE: In this setup, You need to specify generateTypings in the buildConfig if you want a d.ts file.
+        // "declaration": false
+
+        // Valid setup 2: uses external modules.  don't specify generateTypings in buildConfig
+        // In order to get proper class definition ordering (e.g. base classes defined before derived classes) in the
+        // output bundle, you need to use /// <reference... tags (TODO: Or import?) so that TSC can track the dependency
+        // mapping for you.
+        "module": "system",
+        "declaration": true,
+        "out": "testLibrary-bundle.js"
+    }
+}
