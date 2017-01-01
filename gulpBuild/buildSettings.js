@@ -9,6 +9,10 @@ var buildSettings = {
         // By default, if a project has no transpiled files in it then we assume error in path.  You can disable that 
         // error by enabling allowEmptyFolders
         // allowEmptyFolders: true
+
+        // By default, if it's a debug build then we propose disabling debug once the build env is stable for perf
+        // reasons.  If you want perma-debug builds, then you can disable that warning by setting this to false.
+        warnIfDebugBuild: true,
     },
 
     // Minified builds can strip debug checks from output js for perf.  To indicate that a block should be stripped,

@@ -46,6 +46,32 @@ This assumes you already have a basic Typescript project set up and running.
     * The buildConfig.js files in the root and in the moreExampleBuildEnvs folder are good starting points.
     * The Wiki links below
 
+# Sample configurations
+
+The following sample configurations are included in this repo, with the hope that at one will be close to your own existing
+build environment.  If you'd like to see another, let me know!
+
+| Sample | Demonstrates |
+| --- |--- |
+| /buildConfig.js | This is the default build configuration for the sample, and it flexes many aspects of the build environment.  It's also the one that my 'Duality' project uses.
+| moreExampleBuildEnvs/simpleApp | The simplest example; a single app
+| moreExampleBuildEnvs/SimpleLibraryAndApp | Extends the above with another project that builds a separate library
+| moreExampleBuildEnvs/SimpleAggregateBundle | Extends the above by bundling the app and library together into a single output file
+| moreExampleBuildEnvs/programmaticBuildConfig | Example of how to use the WIP buildconfig APIs rather than defining your build config as a javascript object
+| moreExampleBuildEnvs/externalModuleReferenceBundle | Shows how to use external modules and '/// reference...' tags
+| moreExampleBuildEnvs/externalModuleImportBundle | Shows how to use external modules and 'import'; combines the library project's exports into a single importable.
+| moreExampleBuildEnvs/externalModuleImportBundle2 |  Shows how to use external modules and 'import'; keeps the library project's exports distinct 
+
+The following build configurations are planned for the future, or are checked in in 'WIP' format:
+
+| Sample | Demonstrates |
+| --- |--- |
+| moreExampleBuildEnvs/externalModuleBundleWithLoader | [WIP] This config will demonstrate how to bundle the module loader in with your code.
+| moreExampleBuildEnvs/externalModuleBundleSystemJS | [FUTURE] This config will demonstrate how to work with systemjs modules in this build environment
+| moreExampleBuildEnvs/externalModuleBundleCommon | [FUTURE] This config will demonstrate how to work with common modules in this build environment
+| moreExampleBuildEnvs/externalModuleBundleAMD | [FUTURE] This config will demonstrate how to work with AMD modules in this build environment
+| moreExampleBuildEnvs/externalModuleAsyncLoad | [FUTURE] This whole build env is designed for client-side apps which bundle all output js into a single file.  This sample will demonstrate how to use the environment in 
+something more like a node.js environment where you may want to asynchronously load modules.  I believe it'll be as simple as disabling bundling.
 
 # Why this repo exists
 

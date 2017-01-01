@@ -93,6 +93,16 @@ var bu = {
                 filesToCompile.push(bu.joinPath(project.path, file));
             }
 
+        if (buildSettings.debug) {
+            // verify files exist
+            for (var fileGlob of filesToCompile) {
+                var files = glob.sync(fileGlob);
+                bu.assert(files.length > 0, "Source file to compile '" + fileGlob + "' not found");
+                for (var file of files)
+                    bu.assert(fs.existsSync(file), "Source file to compile '" + file + "' not found");
+            }
+        }
+
         // TODO (CLEANUP): is the base:"." necessary, or is that the default value already?
         var tsResult = gulp.src(filesToCompile, { base: "." })
 

@@ -1,0 +1,9 @@
+{
+    "compilerOptions": {
+        "target": "es5",
+        "sourceMap": true,
+        "skipLibCheck": true,
+        // NOTE: AllowJs is required so that we can bundle in the loader
+        "allowJs": true
+    }
+}

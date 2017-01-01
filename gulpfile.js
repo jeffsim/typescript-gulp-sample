@@ -9,9 +9,6 @@ var del = require("del"),
 var bu = require("./gulpBuild/buildUtils"),
     buildSettings = require("./gulpBuild/buildSettings");
 
-// TODO NEXT:
-// * Update readme.
-
 
 // ************************************************************************************************
 // ************************************************************************************************
@@ -31,8 +28,16 @@ var bu = require("./gulpBuild/buildUtils"),
 // var buildConfig = require("./moreExampleBuildEnvs/programmaticBuildConfig/buildConfig");
 // var buildConfig = require("./moreExampleBuildEnvs/simpleAggregateBundle/buildConfig");
 // var buildConfig = require("./moreExampleBuildEnvs/externalModuleReferenceBundle/buildConfig");
-var buildConfig = require("./moreExampleBuildEnvs/externalModuleImportBundle2/buildConfig");
+// var buildConfig = require("./moreExampleBuildEnvs/externalModuleImportBundle2/buildConfig");
 var buildConfig = require("./moreExampleBuildEnvs/externalModuleImportBundle/buildConfig");
+
+// NOTE: The following buildConfig is not yet working.  I'd like to add sample configurations that demonstrate how
+// to use all of the different loaders, and in each case I'll want to include the relevant loader code in the bundle.
+// The following sample does do that inclusion, but it's not including the right file.  I need to dig deeper into
+// how these loaders are expected to work.
+// var buildConfig = require("./moreExampleBuildEnvs/externalModuleImportBundleWithLoader/buildConfig");
+
+// TODO: Add a sample that demonstrates async loading.  Disable bundling.  
 
 // Finish initializing the build configuration by populating default ProjectGroup and Project values.
 bu.finishInitializingProjects(buildConfig);
@@ -178,6 +183,10 @@ gulp.task('watch', function () {
     // Because we don't maintain information about files between Task runs, our modifiedCache is always empty
     // at the start, and thus we'll rebuild everything.  Track that it's the first build so that we can output it.
     globals.isFirstBuild = true;
+
+    // Drop a quick command line warning if this is a debug build
+    if (buildSettings.debug && buildSettings.warnIfDebugBuild)
+        bu.log("This is a debug build.  Once everything is building as expected, consider clearing buildSettings.debug for performance.", true);
 
     // Watch for changes to .ts files; when they occur, run the 'build-all' task
     // NOTE: Using gulp-watch instead of gulp.watch, as I'm not getting an 'end' event from the latter.  I could be using it wrong...
