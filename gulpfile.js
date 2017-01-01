@@ -30,10 +30,9 @@ var bu = require("./gulpBuild/buildUtils"),
 // var buildConfig = require("./moreExampleBuildEnvs/simpleLibraryAndApp/buildConfig");
 // var buildConfig = require("./moreExampleBuildEnvs/programmaticBuildConfig/buildConfig");
 // var buildConfig = require("./moreExampleBuildEnvs/simpleAggregateBundle/buildConfig");
-var buildConfig = require("./moreExampleBuildEnvs/externalModuleReferenceBundle/buildConfig");
-
-// TODO: Create example build configuration that uses external modules and 'import' instead of '/// <ref...'
-// var buildConfig = require("./moreExampleBuildEnvs/externalModuleImportBundle/buildConfig");
+// var buildConfig = require("./moreExampleBuildEnvs/externalModuleReferenceBundle/buildConfig");
+var buildConfig = require("./moreExampleBuildEnvs/externalModuleImportBundle2/buildConfig");
+var buildConfig = require("./moreExampleBuildEnvs/externalModuleImportBundle/buildConfig");
 
 // Finish initializing the build configuration by populating default ProjectGroup and Project values.
 bu.finishInitializingProjects(buildConfig);
