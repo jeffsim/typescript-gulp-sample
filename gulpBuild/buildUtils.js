@@ -348,7 +348,7 @@ var bu = {
         // Also watch extraFilesToBundle
         if (project.extraFilesToBundle)
             project.extraFilesToBundle.forEach((fileGlob) => globFiles = globFiles.concat(glob.sync(bu.joinPath(project.path, fileGlob))));
-        
+
         // If project doesn't have any .ts files (e.g. it only has .js) then nothing to compile.
         // Bit tricky here; project *could* have .d.ts files; if it only has those, then don't compile
         var hasFilesToCompile = false;
@@ -851,11 +851,19 @@ var bu = {
                     if (!projectGroup.tsConfigFile)
                         bu.assert(bu.fileExists(bu.joinPath(project.path, "tsconfig.json")), "tsconfig.json file not found in Project root('" + project.path + "') for Project '" + projectId + "'");
 
+                    // Verify we can load the tsconfigFile
+                    var projectTS = tsc.createProject(project.projectGroup.tsConfigFile || bu.joinPath(project.path, "tsconfig.json"));
+                    bu.assert(projectTS, "Failed to load tsconfig.json for project '" + project + "'.");
+
                     // Verify that there's at least one file to compile.
                     if (!buildSettings.debugSettings.allowEmptyFolders) {
                         var numFiles = 0;
                         project.files.forEach((fileGlob) => numFiles += glob.sync(fileGlob).length);
-                        bu.assert(numFiles > 0, "No .ts files found for project '" + projectId + "'.  If this is expected behavior, then set buildSettings.debug.allowEmptyFolders:true");
+                        // if a project is pure JS (not TS files) then numFiles can be zero IFF allowJs=true
+                        if (!(numFiles == 0 && projectTS.options.allowJs))
+                            bu.assert(numFiles > 0, "No .ts files found for project '" + projectId +
+                             "'.  If this is expected behavior, then set buildSettings.debug.allowEmptyFolders:true, OR " +
+                             "if this project only has JS files, then set allowJs:true in the project's tsconfig.json file");
                     }
 
                     // If dependsOn is specified, then ensure dependent projects exists
