@@ -122,7 +122,7 @@ gulp.task("rebuild-all", function () {
     // Clean and then build.
     return bu.runSeries([
         () => clean(),
-        () => bu.buildAll(buildConfig)
+        () => buildAll()
     ]).on("end", () => onBuildCompleted());
 });
 
