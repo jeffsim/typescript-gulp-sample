@@ -48,10 +48,7 @@ function initialize() {
     //  projectDefaults: {}         Specifies default values for projects in the projectgroup.  can be any field that can be set on a project
     //                              Values can still be overridden by explicitly specifying in a project.
     //  projects:Project[]          List of Projects within the ProjectGroup.
-    //  extraFilesToBundle:string[] List of files to include in the project bundle.  e.g. preexisting js files.
-    //                              Note: this requires that allowJs be set to true in the project's tsconfig.json file
-    //                              so that tsc passes them through; otherwise they'll get dropped silently
-    // projectRootFolder?: string   Optional path to root all projects in.  Avoids redundantly specifying path root in
+    //  projectRootFolder?: string  Optional path to root all projects in.  Avoids redundantly specifying path root in
     //                              project.path.  Note that this field does not apply to paths in other ProjectGroup-
     //                              level fields such as filesToClean or commonFiles; they remain rooted in the buildenv root.
     //  filesToClean?: string[]     List of file (globs) to delete when running clean task. NOTE: path is relative to
@@ -66,6 +63,9 @@ function initialize() {
     //                              '**/*.js' (ie all transpiled files).  If a project doesn't have pre-existing js files
     //                              then the default is normally fine.  Note that these files are in addition to a set
     //                              of always-deleted files (e.g. **/*.map).  See function clean() for details.
+    //  extraFilesToBundle:string[] List of files to include in the project bundle.  e.g. preexisting js files.
+    //                              Note: this requires that allowJs be set to true in the project's tsconfig.json file
+    //                              so that tsc passes them through; otherwise they'll get dropped silently
     //  buildRootFolder: string     Root of where temporary build files go.  can override to /, /mybld/out, or whatever...
     //  buildFolder: string         Actual folder into which temp. build files go.  Can accept default, override root
     //                              w/ buildRootFolder, or specify explicitly here.
@@ -282,7 +282,7 @@ function initialize() {
         }],
 
         // project overrides that are applied to all projects in this projectGroup
-        projectDefaults: { 
+        projectDefaults: {
             // Because I want samples to be more 'standalone', built output goes into the sample folder
             buildRootFolder: "."
         },

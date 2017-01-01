@@ -29,13 +29,13 @@ var bu = require("./gulpBuild/buildUtils"),
 // var buildConfig = require("./moreExampleBuildEnvs/simpleAggregateBundle/buildConfig");
 // var buildConfig = require("./moreExampleBuildEnvs/externalModuleReferenceBundle/buildConfig");
 // var buildConfig = require("./moreExampleBuildEnvs/externalModuleImportBundle2/buildConfig");
-var buildConfig = require("./moreExampleBuildEnvs/externalModuleImportBundle/buildConfig");
+// var buildConfig = require("./moreExampleBuildEnvs/externalModuleImportBundle/buildConfig");
 
 // NOTE: The following buildConfig is not yet working.  I'd like to add sample configurations that demonstrate how
 // to use all of the different loaders, and in each case I'll want to include the relevant loader code in the bundle.
 // The following sample does do that inclusion, but it's not including the right file.  I need to dig deeper into
 // how these loaders are expected to work.
-// var buildConfig = require("./moreExampleBuildEnvs/externalModuleImportBundleWithLoader/buildConfig");
+var buildConfig = require("./moreExampleBuildEnvs/externalModuleImportBundleWithLoader/buildConfig");
 
 // TODO: Add a sample that demonstrates async loading.  Disable bundling.  
 
@@ -189,13 +189,21 @@ gulp.task('watch', function () {
         bu.log("This is a debug build.  Once everything is building as expected, consider clearing buildSettings.debug for performance.", true);
 
     // Watch for changes to .ts files; when they occur, run the 'build-all' task
-    // NOTE: Using gulp-watch instead of gulp.watch, as I'm not getting an 'end' event from the latter.  I could be using it wrong...
-    gulpWatch([
-        "**/*.ts",
-        "!**/*.d.ts",
-        "!dist",
-        "!bld"
-    ], () => {
+    var filesToWatch = ["**/*.ts", "!**/*.d.ts", "!dist", "!bld"];
+    // Also watch for changes to any JS files that are bundled (since changes to them won't trigger rebuilds)
+    for (var projectGroupId in buildConfig.projectGroups) {
+        var projectGroup = buildConfig.projectGroups[projectGroupId];
+        for (var projectId in projectGroup.projects) {
+            var project = projectGroup.projects[projectId];
+            if (project.extraFilesToBundle)
+                for (var file of project.extraFilesToBundle)
+                    filesToWatch.push(bu.joinPath(project.path, file));
+        }
+    }
+
+    // NOTE: Using gulp-watch instead of gulp.watch, as I'm not getting an 'end' event from the latter and I need it to
+    // track rebuilds when using gulp.watch.  I could be using it wrong...
+    gulpWatch(filesToWatch, () => {
         // If this is the filechange that triggers the build, then start the build
         if (!globals.isBuilding)
             return buildAll();

@@ -345,6 +345,10 @@ var bu = {
         var globFiles = [];
         project.files.forEach((fileGlob) => globFiles = globFiles.concat(glob.sync(fileGlob)));
 
+        // Also watch extraFilesToBundle
+        if (project.extraFilesToBundle)
+            project.extraFilesToBundle.forEach((fileGlob) => globFiles = globFiles.concat(glob.sync(bu.joinPath(project.path, fileGlob))));
+        
         // If project doesn't have any .ts files (e.g. it only has .js) then nothing to compile.
         // Bit tricky here; project *could* have .d.ts files; if it only has those, then don't compile
         var hasFilesToCompile = false;
@@ -944,6 +948,7 @@ var bu = {
             }
         return bu.buildAggregateBundle(bundle, sourceFiles, false, "Build bundled JS", bundle.outputFolder);
     },
+
     buildProjectGroupBundle: function (projectGroup) {
         // testing - cancel all project builds if a file has changed
         if (bu.buildCancelled)
@@ -952,6 +957,7 @@ var bu = {
         var taskTracker = new bu.TaskTracker("buildProjectGroupBundle (" + projectGroup.name + ")");
         if (!projectGroup.bundleProjectsTogether) {
             // project group not bundled together, so nothing to do here
+            taskTracker.end();
             return bu.getCompletedStream();
         }
 
@@ -968,8 +974,10 @@ var bu = {
             () => bu.buildAggregateBundle(projectGroup.bundleProjectsTogether, sourceFiles, true, "Build project group bundle (" +
                 projectGroup.name + ")", projectGroup.bundleProjectsTogether.outputFolder),
             () => {
-                if (!projectGroup.bundleProjectsTogether.generateTyping)
+                if (!projectGroup.bundleProjectsTogether.generateTyping) {
+                    taskTracker.end();
                     return bu.getCompletedStream();
+                }
 
                 // Create list of typing files we'll bundle
                 var typingFiles = [];

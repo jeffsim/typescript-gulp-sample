@@ -108,10 +108,3 @@ Running code
 * [Debugging the gulpfile](https://github.com/jeffsim/typescript-gulp-sample/wiki/Debugging-the-gulpfile)
 * [Running tests](https://github.com/jeffsim/typescript-gulp-sample/wiki/Running-tests)
 * [Sourcemap based debugging](https://github.com/jeffsim/typescript-gulp-sample/wiki/Sourcemap-based-debugging)
-
-# Known Issues
-
-* Bundled JS files aren't watched.  So if you have a standalone JS file which you're bundling into a TS Project, and you
-make a change to that file, then the buildenv won't know about it and won't know to trigger a build and force a recreation of the bundle.
-  - Repro: Make a change to samples/testApp2/testJS.js while watch task is active; nothing happens.
-  - Workaround: Do a complete rebuild (or, stop and restart the watch process, which will trigger one)
