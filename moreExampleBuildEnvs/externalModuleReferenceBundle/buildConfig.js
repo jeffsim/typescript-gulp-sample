@@ -12,4 +12,15 @@ var buildConfig = {
     }
 };
 
+// Add the example app, which uses the above library
+buildConfig.projectGroups.testApp = {
+    projects: {
+        testApp: {
+            path: "moreExampleBuildEnvs/externalModuleReferenceBundle/testApp",
+            // Declare testLibrary as a dependent project so that testLibrary's d.ts and .js files will be copied
+            dependsOn: [buildConfig.projectGroups.testLibrary.projects.testLibrary],
+        }
+    }
+}
+
 module.exports = buildConfig;
