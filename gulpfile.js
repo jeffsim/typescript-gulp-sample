@@ -22,7 +22,7 @@ var bu = require("./gulpBuild/buildUtils"),
 // ************************************************************************************************
 
 // Load the build configuration.  This defines the ProjectGroups and Projects which will be built
-var buildConfig = require("./buildConfig");
+// var buildConfig = require("./buildConfig");
 
 // Comment out the above and use the following buildConfigs instead to play with other buildConfigs
 // NOTE: Building these does not result in executable apps (e.g. no index.html); they instead show build process.
@@ -30,6 +30,10 @@ var buildConfig = require("./buildConfig");
 // var buildConfig = require("./moreExampleBuildEnvs/simpleLibraryAndApp/buildConfig");
 // var buildConfig = require("./moreExampleBuildEnvs/programmaticBuildConfig/buildConfig");
 // var buildConfig = require("./moreExampleBuildEnvs/simpleAggregateBundle/buildConfig");
+var buildConfig = require("./moreExampleBuildEnvs/externalModuleReferenceBundle/buildConfig");
+
+// TODO: Create example build configuration that uses external modules and 'import' instead of '/// <ref...'
+// var buildConfig = require("./moreExampleBuildEnvs/externalModuleImportBundle/buildConfig");
 
 // Finish initializing the build configuration by populating default ProjectGroup and Project values.
 bu.finishInitializingProjects(buildConfig);

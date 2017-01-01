@@ -46,6 +46,8 @@ var bu = {
         if (skipStream)
             return skipStream;
 
+        project.ts = tsc.createProject(project.projectGroup.tsConfigFile || bu.joinPath(project.path, "tsconfig.json"));
+
         // Build the Project; then in parallel minify it and build d.ts file (as needed).
         return bu.runSeries([
             // First, build the project.  This transpiles .ts files into .js files and copies result to
@@ -73,8 +75,6 @@ var bu = {
             return bu.getCompletedStream();
 
         var taskTracker = new bu.TaskTracker("buildProject", project);
-        var projectFolderName = bu.joinPath(project.path, "/");
-        var ts = tsc.createProject(project.projectGroup.tsConfigFile || bu.joinPath(projectFolderName, "tsconfig.json"));
 
         // Create list of files to compile.  Combination of common files in the project group AND files in the project
         var filesToCompile = project.files.slice();
@@ -86,7 +86,7 @@ var bu = {
             for (var file of project.extraFilesToBundle) {
                 // debugstart
                 if (buildSettings.debug) {
-                    if (file.indexOf(".js") != -1 && !ts.options.allowJs)
+                    if (file.indexOf(".js") != -1 && !project.ts.options.allowJs)
                         throw Error("Including .js files via project.extraFilesToBundle requires that allowJs be set in the project's tsconfig.json");
                 }
                 // debugend
@@ -94,7 +94,7 @@ var bu = {
             }
 
         // TODO (CLEANUP): is the base:"." necessary, or is that the default value already?
-        return gulp.src(filesToCompile, { base: "." })
+        var tsResult = gulp.src(filesToCompile, { base: "." })
 
             // Initialize sourcemap generation
             .pipe(sourcemaps.init())
@@ -102,22 +102,28 @@ var bu = {
             // track if errors occurred
             .pipe(plumber({ errorHandler: bu.caughtCompileError }))
 
-
             // Do the actual transpilation from Typescript to Javascript.
-            .pipe(ts())
+            .pipe(project.ts());
 
-            // We always bundle output for simplicity's sake, so combine all of the resultant javascript into a single file
-            .pipe(concat(project.debugBundleFilename))
+        var separateOutputFolder = project.outputFolder && (project.buildFolder != project.outputFolder);
+        var buildActions = [];
+        // Alright, I'm getting out over the tips of my skis a bit here, but making some assumptions:
+        // If the tsconfig specified an 'out' file, then we assume that the compiler will handle bundling for us.
+        // If the tsconfig doesn't have an 'out' file, then we do the bundling, because we always require a bundle here.
+        buildActions.push(() => tsResult.js.pipe(gulpIf(!project.ts.options.out, concat(project.debugBundleFilename)))
 
             // Write sourcemaps into the folder set by the following gulp.dest call
             .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: "/" }))
 
             // Copy built project output into project.buildFolder and, if outputFolder is specified, to project.outputFolder
             .pipe(gulp.dest(project.buildFolder))
-            .pipe(gulp.dest(project.outputFolder))
+            .pipe(gulpIf(separateOutputFolder, gulp.dest(project.outputFolder))));
 
-            // Output end of task
-            .on("end", () => taskTracker.end());
+        // Write d.ts IFF it's not being written in buildLibDefinitionFile.  It gets written here if tsconfig.declaration = true
+        if (project.ts.options.declaration) {
+            buildActions.push(() => tsResult.dts.pipe(gulp.dest(bu.joinPath(project.buildFolder, "typings"))));
+        }
+        return bu.runParallel(buildActions).on("end", () => taskTracker.end());
     },
 
     // Minifies a single Project.  Details:
@@ -131,7 +137,24 @@ var bu = {
         var taskTracker = new bu.TaskTracker("minifyProject", project);
 
         // Minify all the built bundle js files in the built folder
-        return gulp.src([bu.joinPath(project.buildFolder, project.debugBundleFilename)], { base: project.buildFolder })
+        var sourceDebugBundle, outputName;
+        if (project.ts.options.out) {
+            // tsconfig file specified an out name, so source from that
+            sourceDebugBundle = bu.joinPath(project.buildFolder, project.ts.options.out);
+            // bit of hackery here; want to specify min name as "bundlename-min.js", where bundlename is what's specified
+            // in the tsconfig.json's "out" property.  Can't just append -min since that'd give bundlename.js-min...
+            // TODO (CLEANUP): Use reg to strip the .js, then do + "-min.js"
+            outputName = project.ts.options.out.slice(0, project.ts.options.out.length - 3) + "-min.js";
+        } else {
+            // tsconfig file didn't specify an out name, so we created one; use that.
+            sourceDebugBundle = bu.joinPath(project.buildFolder, project.debugBundleFilename);
+            outputName = project.minBundleFilename;
+        }
+        if (buildSettings.debug) {
+            // verify that a debug bundle was created
+            bu.assert(fs.existsSync(sourceDebugBundle), "Source debug bundle '" + sourceDebugBundle + "' not found.");
+        }
+        return gulp.src([sourceDebugBundle], { base: project.buildFolder })
 
             // Initialize Sourcemap generation, telling it to load existing sourcemap (from the already-built *-debug.js file(s))
             .pipe(sourcemaps.init({ loadMaps: true }))
@@ -143,7 +166,7 @@ var bu = {
             .pipe(bu.stripDebugStartEnd())
 
             // Rename output to project.minBundleFilename
-            .pipe(rename(project.minBundleFilename))
+            .pipe(rename(outputName))
 
             // Minify the project
             .pipe(uglify())
@@ -179,6 +202,20 @@ var bu = {
     // Generates .d.ts definition file for a single project
     buildDefinitionFile: function (project) {
 
+        if (buildSettings.debug) {
+            // If tsconfig specifies that it's doing dts generation AND the buildconfig does, then warn user about redundancy
+            if (project.ts.options.declaration === true && project.generateTyping) {
+                var str = "The tsconfig file for project '" + project.name + "' specifies 'declaration:true' AND the " +
+                    "project's buildConfig settings specify generateTyping.  These settings are redundant; recommend removing one.  ";
+                if (project.ts.options.out && ts.options.module)
+                    str += "Based on the presence of tsconfig.module & tsconfig.out, " +
+                        "you should probably try removing the generateTypings:true from buildConfig.";
+                else
+                    str += "Based on the lack of 'module' and 'out' in your tsconfig, you should probably try removing the " +
+                        "'declaration:true' setting from the project's tsconfig.json file.";
+                bu.fail(str);
+            }
+        }
         // testing - cancel all project builds if a file has changed
         if (bu.buildCancelled)
             return bu.getCompletedStream();
@@ -458,6 +495,10 @@ var bu = {
     assert: function (check, string) {
         if (!check)
             throw new Error(string);
+    },
+
+    fail: function (string) {
+        throw new Error(string);
     },
 
     // Returns true if a file exists; false otherwise.
