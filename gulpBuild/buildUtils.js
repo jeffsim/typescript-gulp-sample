@@ -113,7 +113,8 @@ var bu = {
             .pipe(plumber({ errorHandler: bu.caughtCompileError }))
 
             // Do the actual transpilation from Typescript to Javascript.
-            .pipe(project.ts());
+            // Specify a custom error reporter so that we can output full filepaths to the output window (making them clickable)
+            .pipe(project.ts(bu.customTSErrorReporter));
 
         var separateOutputFolder = project.outputFolder && (project.buildFolder != project.outputFolder);
         var buildActions = [];
@@ -196,6 +197,36 @@ var bu = {
 
             // Output end of task
             .on("end", () => taskTracker.end())
+    },
+
+    // Custom Typescript reporter to output full filepaths so that build output window is clickable
+    // NOTE: Errors in the console window are still not clickable; this only impacts the build window
+    customTSErrorReporter: {
+        error: function (error, ts) {
+            // TS's default error reporter currently just outputs error.message, which looks something like this:
+            //      Duality\Editor\Editor.ts(175,9): error TS2304: Cannot find name 'GLStateStore'.
+            // However, VSCode's output window doesn't (yet) support project-relative paths, so the above isn't clickable
+            // To fix this, we play with the error message so that we get a full path; something more like this:
+            //      C:\dev\Duality\Editor\Editor.ts(175,9): error TS2304: Cannot find name 'GLStateStore'.
+            // console.error(error.message);
+            var msg = error.fullFilename;
+            // regexp to extract fields
+            var re = /(.*)\((\d+),(\d+)\): (.*): (.*)$/gm.exec(error.message);
+            if (!re || re.length < 5) {
+                // failed to match
+                bu.log("Error in customTSErrorReporter; failed to match message '" + error.message + "'.", true);
+                console.log(error.message);
+            } else {
+                var relativePathAndFilename = re[1];
+                var errorLine = re[2];
+                var errorCol = re[3];
+                var errorName = re[4];
+                var errorMessage = re[5];
+                console.error(error.fullFilename + "(" + errorLine + "," + errorCol + "): " + errorName + ": " + errorMessage);
+            }
+        },
+        finish: function (results) {
+        }
     },
 
     caughtCompileError: function (err) {
