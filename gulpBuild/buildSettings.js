@@ -14,6 +14,10 @@ var buildSettings = {
         // reasons.  If you want perma-debug builds, then you can disable that warning by setting this to false.
         warnIfDebugBuild: true,
 
+        // We re-output all encountered compiler errors at the end of the build; this is useful for large envs with
+        // multiple projects.  For smaller projects it's redundant though, and can be disabled.
+        outputErrorsAtEnd: true,
+
         // By default we only output summary info about errors encountered; if you need more details, set this to true
         verboseErrorOutput: false,
     },
