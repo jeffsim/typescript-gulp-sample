@@ -131,7 +131,7 @@ gulp.task("rebuild-all", function () {
     return bu.runSeries([
         () => clean(),
         () => buildAll()
-    ]).on("end", () => onBuildCompleted());
+    ]);
 });
 
 // Builds everything (w/o cleaning first)
