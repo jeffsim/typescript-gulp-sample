@@ -211,7 +211,6 @@ var bu = {
 
     // TS's default error reporter currently just outputs error.message, which looks something like this:
     //      Duality\Editor\Editor.ts(175,9): error TS2304: Cannot find name 'GLStateStore'.
-    // However, VSCode's output window doesn't (yet) support project-relative paths, so the above isn't clickable
     // To fix this, we play with the error message so that we get a full path; something more like this:
     //      C:\dev\Duality\Editor\Editor.ts(175,9): error TS2304: Cannot find name 'GLStateStore'.
     getClickableErrorMessage(error) {
@@ -227,7 +226,7 @@ var bu = {
             var errorCol = re[3];
             var errorName = re[4];
             var errorMessage = re[5];
-            return error.fullFilename + "(" + errorLine + "," + errorCol + "): " + errorName + ": " + errorMessage;
+            return "    " + error.fullFilename + ":" + errorLine + ":" + errorCol + ": " + errorName + ": " + errorMessage;
         }
     },
 
