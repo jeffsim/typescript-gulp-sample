@@ -171,7 +171,7 @@ function onBuildCompleted() {
             var numOutput = 0;
             bu.log("ERRORS:");
             for (var error of bu.errorList) {
-                bu.log(error.message, true);
+                bu.log(bu.getClickableErrorMessage(error), true);
                 if (numOutput++ >= 100) {
                     bu.log("... + " + (bu.errorList.length - numOutput) + " more errors.", true);
                     break;

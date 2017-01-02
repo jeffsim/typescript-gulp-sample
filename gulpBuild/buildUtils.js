@@ -203,29 +203,31 @@ var bu = {
     // NOTE: Errors in the console window are still not clickable; this only impacts the build window
     customTSErrorReporter: {
         error: function (error, ts) {
-            // TS's default error reporter currently just outputs error.message, which looks something like this:
-            //      Duality\Editor\Editor.ts(175,9): error TS2304: Cannot find name 'GLStateStore'.
-            // However, VSCode's output window doesn't (yet) support project-relative paths, so the above isn't clickable
-            // To fix this, we play with the error message so that we get a full path; something more like this:
-            //      C:\dev\Duality\Editor\Editor.ts(175,9): error TS2304: Cannot find name 'GLStateStore'.
-            // console.error(error.message);
-            var msg = error.fullFilename;
-            // regexp to extract fields
-            var re = /(.*)\((\d+),(\d+)\): (.*): (.*)$/gm.exec(error.message);
-            if (!re || re.length < 5) {
-                // failed to match
-                bu.log("Error in customTSErrorReporter; failed to match message '" + error.message + "'.", true);
-                console.log(error.message);
-            } else {
-                var relativePathAndFilename = re[1];
-                var errorLine = re[2];
-                var errorCol = re[3];
-                var errorName = re[4];
-                var errorMessage = re[5];
-                console.error(error.fullFilename + "(" + errorLine + "," + errorCol + "): " + errorName + ": " + errorMessage);
-            }
+            return bu.getClickableErrorMessage(error);
         },
         finish: function (results) {
+        }
+    },
+
+    // TS's default error reporter currently just outputs error.message, which looks something like this:
+    //      Duality\Editor\Editor.ts(175,9): error TS2304: Cannot find name 'GLStateStore'.
+    // However, VSCode's output window doesn't (yet) support project-relative paths, so the above isn't clickable
+    // To fix this, we play with the error message so that we get a full path; something more like this:
+    //      C:\dev\Duality\Editor\Editor.ts(175,9): error TS2304: Cannot find name 'GLStateStore'.
+    getClickableErrorMessage(error) {
+        // regexp to extract fields
+        var re = /(.*)\((\d+),(\d+)\): (.*): (.*)$/gm.exec(error.message);
+        if (!re || re.length < 5) {
+            // failed to match
+            bu.log("Error in customTSErrorReporter; failed to match message '" + error.message + "'.", true);
+            return error.message;
+        } else {
+            var relativePathAndFilename = re[1];
+            var errorLine = re[2];
+            var errorCol = re[3];
+            var errorName = re[4];
+            var errorMessage = re[5];
+            return error.fullFilename + "(" + errorLine + "," + errorCol + "): " + errorName + ": " + errorMessage;
         }
     },
 
@@ -295,7 +297,7 @@ var bu = {
 
         if (buildSettings.debug)
             bu.assert(projectGroup, "invalid projectGroup passed to buildProjectGroup");
-            
+
         // testing - cancel all project builds if a file has changed
         if (bu.buildCancelled) {
             bu.log("Cancelling project build...");
@@ -896,8 +898,8 @@ var bu = {
                         // if a project is pure JS (not TS files) then numFiles can be zero IFF allowJs=true
                         if (!(numFiles == 0 && projectTS.options.allowJs))
                             bu.assert(numFiles > 0, "No .ts files found for project '" + projectId +
-                             "'.  If this is expected behavior, then set buildSettings.debug.allowEmptyFolders:true, OR " +
-                             "if this project only has JS files, then set allowJs:true in the project's tsconfig.json file");
+                                "'.  If this is expected behavior, then set buildSettings.debug.allowEmptyFolders:true, OR " +
+                                "if this project only has JS files, then set allowJs:true in the project's tsconfig.json file");
                     }
 
                     // If dependsOn is specified, then ensure dependent projects exists
