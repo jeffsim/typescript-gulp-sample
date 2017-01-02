@@ -203,7 +203,7 @@ var bu = {
     // NOTE: Errors in the console window are still not clickable; this only impacts the build window
     customTSErrorReporter: {
         error: function (error, ts) {
-            return bu.getClickableErrorMessage(error);
+            bu.logError(bu.getClickableErrorMessage(error));
         },
         finish: function (results) {
         }
@@ -219,7 +219,7 @@ var bu = {
         var re = /(.*)\((\d+),(\d+)\): (.*): (.*)$/gm.exec(error.message);
         if (!re || re.length < 5) {
             // failed to match
-            bu.log("Error in customTSErrorReporter; failed to match message '" + error.message + "'.", true);
+            bu.logError("Error in customTSErrorReporter; failed to match message '" + error.message + "'.");
             return error.message;
         } else {
             var relativePathAndFilename = re[1];
@@ -588,9 +588,7 @@ var bu = {
     },
 
     logError: function (string) {
-        bu.log(" ");
         bu.log(string, true);
-        bu.log(" ");
     },
 
     // requireUncached - allows runtime reloading of required modules; e.g. when buildSEttings changes

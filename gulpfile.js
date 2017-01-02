@@ -165,13 +165,13 @@ function onBuildCompleted() {
     else if (bu.numCompileErrors > 0) {
         bu.log(bu.getTimeString(new Date()) + " Build completed, but with " + bu.numCompileErrors + " errors", true);
         if (buildSettings.debugSettings.verboseErrorOutput)
-            bu.log(bu.errorList, true);
+            bu.logError(bu.errorList);
         else {
             // output first 100 errors only
             var numOutput = 0;
             bu.log("ERRORS:");
             for (var error of bu.errorList) {
-                bu.log(bu.getClickableErrorMessage(error), true);
+                bu.logError(bu.getClickableErrorMessage(error));
                 if (numOutput++ >= 100) {
                     bu.log("... + " + (bu.errorList.length - numOutput) + " more errors.", true);
                     break;
