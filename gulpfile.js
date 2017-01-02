@@ -19,7 +19,7 @@ var bu = require("./gulpBuild/buildUtils"),
 // ************************************************************************************************
 
 // Load the build configuration.  This defines the ProjectGroups and Projects which will be built
-// var buildConfig = require("./buildConfig");
+var buildConfig = require("./buildConfig");
 
 // Comment out the above and use the following buildConfigs instead to play with other buildConfigs
 // NOTE: Building these does not result in executable apps (e.g. no index.html); they instead show build process.
@@ -35,7 +35,7 @@ var bu = require("./gulpBuild/buildUtils"),
 // to use all of the different loaders, and in each case I'll want to include the relevant loader code in the bundle.
 // The following sample does do that inclusion, but it's not including the right file.  I need to dig deeper into
 // how these loaders are expected to work.
-var buildConfig = require("./moreExampleBuildEnvs/externalModuleImportBundleWithLoader/buildConfig");
+// var buildConfig = require("./moreExampleBuildEnvs/externalModuleImportBundleWithLoader/buildConfig");
 
 // TODO: Add a sample that demonstrates async loading.  Disable bundling.  
 
@@ -161,16 +161,29 @@ function buildAll() {
 function onBuildCompleted() {
     globals.isBuilding = false;
     if (bu.buildCancelled)
-        console.log(bu.getTimeString(new Date()) + " Build cancelled");
+        bu.log(bu.getTimeString(new Date()) + " Build cancelled", true);
     else if (bu.numCompileErrors > 0) {
-        console.log(bu.getTimeString(new Date()) + " Build completed, but with " + bu.numCompileErrors + " errors");
-        console.log(bu.errorList);
+        bu.log(bu.getTimeString(new Date()) + " Build completed, but with " + bu.numCompileErrors + " errors", true);
+        if (buildSettings.debugSettings.verboseErrorOutput)
+            bu.log(bu.errorList, true);
+        else {
+            // output first 100 errors only
+            var numOutput = 0;
+            bu.log("ERRORS:");
+            for (var error of bu.errorList) {
+                bu.log(error.message, true);
+                if (numOutput++ >= 100) {
+                    bu.log("... + " + (bu.errorList.length - numOutput) + " more errors.", true);
+                    break;
+                }
+            }
+        }
     }
     if (globals.rebuildWhenDoneBuilding) {
         globals.rebuildWhenDoneBuilding = false;
-        console.log(" ");
-        console.log("----- Restarting build-all due to filechange during build");
-        console.log(" ");
+        bu.log(" ", true);
+        bu.log("----- Restarting build-all due to filechange during build", true);
+        bu.log(" ", true);
         return buildAll();
     }
 }
@@ -213,7 +226,7 @@ gulp.task('watch', function () {
             return;
 
         // trigger a rebuild when done building
-        console.log("- File changed while building; will restart build again when done.  Will attempt to cancel the rest of the current build...");
+        bu.log("- File changed while building; will restart build again when done.  Will attempt to cancel the rest of the current build...", true);
         globals.rebuildWhenDoneBuilding = true;
 
         // Try to cancel the current build.  It won't stop the current 'low-level' task, but can stop subsequent project builds...

@@ -13,6 +13,9 @@ var buildSettings = {
         // By default, if it's a debug build then we propose disabling debug once the build env is stable for perf
         // reasons.  If you want perma-debug builds, then you can disable that warning by setting this to false.
         warnIfDebugBuild: true,
+
+        // By default we only output summary info about errors encountered; if you need more details, set this to true
+        verboseErrorOutput: false,
     },
 
     // Minified builds can strip debug checks from output js for perf.  To indicate that a block should be stripped,

@@ -217,7 +217,7 @@ var bu = {
             if (project.ts.options.declaration === true && project.generateTyping) {
                 var str = "The tsconfig file for project '" + project.name + "' specifies 'declaration:true' AND the " +
                     "project's buildConfig settings specify generateTyping.  These settings are redundant; recommend removing one.  ";
-                if (project.ts.options.out && ts.options.module)
+                if (project.ts.options.out && project.ts.options.module)
                     str += "Based on the presence of tsconfig.module & tsconfig.out, " +
                         "you should probably try removing the generateTypings:true from buildConfig.";
                 else
@@ -262,6 +262,9 @@ var bu = {
     // Builds a project group (e.g. editor, plugins, samples, or tests)
     buildProjectGroup: function (projectGroup) {
 
+        if (buildSettings.debug)
+            bu.assert(projectGroup, "invalid projectGroup passed to buildProjectGroup");
+            
         // testing - cancel all project builds if a file has changed
         if (bu.buildCancelled) {
             bu.log("Cancelling project build...");
