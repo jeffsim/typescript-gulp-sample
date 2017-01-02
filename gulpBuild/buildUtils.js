@@ -575,7 +575,7 @@ var bu = {
             if (file.relative.indexOf(".d.ts") == -1)
                 bu.log("[" + taskName + "]: File in stream: " + file.relative);
 
-            bu.push(file);
+            this.push(file);
             return callback();
         });
     },
