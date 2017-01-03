@@ -132,7 +132,9 @@ var bu = {
 
         // Write d.ts IFF it's not being written in buildLibDefinitionFile.  It gets written here if tsconfig.declaration = true
         if (project.ts.options.declaration) {
-            buildActions.push(() => tsResult.dts.pipe(gulp.dest(bu.joinPath(project.buildFolder, "typings"))));
+            buildActions.push(() => tsResult.dts
+                .pipe(rename(project.typingBundleFilename))
+            .pipe(gulp.dest(bu.joinPath(project.buildFolder, "typings"))));
         }
         return bu.runParallel(buildActions).on("end", () => taskTracker.end());
     },
@@ -148,19 +150,7 @@ var bu = {
         var taskTracker = new bu.TaskTracker("minifyProject", project);
 
         // Minify all the built bundle js files in the built folder
-        var sourceDebugBundle, outputName;
-        if (project.ts.options.out) {
-            // tsconfig file specified an out name, so source from that
-            sourceDebugBundle = bu.joinPath(project.buildFolder, project.ts.options.out);
-            // bit of hackery here; want to specify min name as "bundlename-min.js", where bundlename is what's specified
-            // in the tsconfig.json's "out" property.  Can't just append -min since that'd give bundlename.js-min...
-            // TODO (CLEANUP): Use reg to strip the .js, then do + "-min.js"
-            outputName = project.ts.options.out.slice(0, project.ts.options.out.length - 3) + "-min.js";
-        } else {
-            // tsconfig file didn't specify an out name, so we created one; use that.
-            sourceDebugBundle = bu.joinPath(project.buildFolder, project.debugBundleFilename);
-            outputName = project.minBundleFilename;
-        }
+        var sourceDebugBundle = bu.joinPath(project.buildFolder, project.debugBundleFilename);
         if (buildSettings.debug) {
             // verify that a debug bundle was created
             bu.assert(fs.existsSync(sourceDebugBundle), "Source debug bundle '" + sourceDebugBundle + "' not found.");
@@ -177,10 +167,13 @@ var bu = {
             .pipe(bu.stripDebugStartEnd())
 
             // Rename output to project.minBundleFilename
-            .pipe(rename(outputName))
+            .pipe(rename(project.minBundleFilename))
 
             // Minify the project
-            .pipe(uglify())
+            // TODO: the call to plumber above is swallowing errors in uglify; I'm not sure why
+            // it's swallowing those but not compiler errors in the ts call above.  For now,
+            // output the error.  Note taht bu.caughCompilerError is still called
+            .pipe(uglify()).on("error", (error) => bu.logError(error.message))
 
             // Write sourcemaps into the folder(s) set by the following gulp.dest call
             .pipe(sourcemaps.write(".", {
@@ -230,15 +223,16 @@ var bu = {
         }
     },
 
-    caughtCompileError: function (err) {
+    caughtCompileError: function (error) {
         bu.numCompileErrors++;
-        bu.errorList.push(err);
+        bu.errorList.push(error);
         if (buildSettings.stopBuildOnError && !bu.warnedStoppingBuild) {
             bu.buildCancelled = true;
             bu.warnedStoppingBuild = true;
             bu.log("Stopping build...");
         }
         this.emit('end');
+        return false;
     },
 
     // Generates .d.ts definition file for a single project
@@ -776,8 +770,8 @@ var bu = {
 
         // If the buildConfig.js didn't complete initialization of any bundles, then do so automatically here.  A more 
         // complex build environment may do this initialization itself
-        if (!buildConfig.bundlesInitialized);
-        bu.finishInitializingBundles(buildConfig);
+        if (!buildConfig.bundlesInitialized)
+            bu.finishInitializingBundles(buildConfig);
 
         for (var projectGroupId in buildConfig.projectGroups) {
             var projectGroup = buildConfig.projectGroups[projectGroupId];

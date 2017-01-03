@@ -22,6 +22,9 @@ var buildSettings = {
         verboseErrorOutput: false,
     },
 
+    // If true, then stop building when an error is encountered.
+    stopBuildOnError: true,
+
     // Minified builds can strip debug checks from output js for perf.  To indicate that a block should be stripped,
     // surround it with the following strings.  grep on DEBUGSTART in this project to see an example
     // These strings are case insensitive; e.g. "// deBUGstart" would match.
