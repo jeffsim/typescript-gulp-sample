@@ -118,10 +118,12 @@ var bu = {
 
         var separateOutputFolder = project.outputFolder && (project.buildFolder != project.outputFolder);
         var buildActions = [];
-        // Alright, I'm getting out over the tips of my skis a bit here, but making some assumptions:
-        // If the tsconfig specified an 'out' file, then we assume that the compiler will handle bundling for us.
-        // If the tsconfig doesn't have an 'out' file, then we do the bundling, because we always require a bundle here.
-        buildActions.push(() => tsResult.js.pipe(gulpIf(!project.ts.options.out, concat(project.debugBundleFilename)))
+        buildActions.push(() => tsResult.js
+
+            // Alright, I'm getting out over the tips of my skis a bit here, but making some assumptions:
+            // If the tsconfig specified an 'out' file, then we assume that the compiler will handle bundling for us.
+            // If the tsconfig doesn't have an 'out' file, then we do the bundling, because we always require a bundle here.
+            .pipe(gulpIf(!project.ts.options.out, concat(project.debugBundleFilename), rename(project.debugBundleFilename)))
 
             // Write sourcemaps into the folder set by the following gulp.dest call
             .pipe(sourcemaps.write(".", { includeContent: false, sourceRoot: "/" }))
