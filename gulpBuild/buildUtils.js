@@ -174,8 +174,8 @@ var bu = {
             // Minify the project
             // TODO: the call to plumber above is swallowing errors in uglify; I'm not sure why
             // it's swallowing those but not compiler errors in the ts call above.  For now,
-            // output the error.  Note taht bu.caughCompilerError is still called
-            .pipe(uglify()).on("error", (error) => bu.logError(error.message))
+            // output the error.  Note that bu.caughCompilerError is still called
+            .pipe(uglify()).on("error", (error) => bu.logError("ERROR (" + error.name + "): " + error.message + " (" + error.fileName + ")"))
 
             // Write sourcemaps into the folder(s) set by the following gulp.dest call
             .pipe(sourcemaps.write(".", {
@@ -687,10 +687,11 @@ var bu = {
                 var endTime = new Date();
                 var delta = (endTime - startTime) / 1000;
                 var endTimeStr = bu.getTimeString(endTime);
+                var status = bu.buildCancelled ? " Cancelled " : " Finished ";
                 if (project)
-                    bu.log(endTimeStr + " Finished " + taskName + " (" + project.name + ") after " + delta + " s", forceOutput);
+                    bu.log(endTimeStr + status + taskName + " (" + project.name + ") after " + delta + " s", forceOutput);
                 else
-                    bu.log(endTimeStr + " Finished " + taskName + " after " + delta + " s", forceOutput);
+                    bu.log(endTimeStr + status + taskName + " after " + delta + " s", forceOutput);
             }
         };
     },
