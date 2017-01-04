@@ -771,7 +771,7 @@ var bu = {
     // For build config debugging purposes; defines the set of optional fields on a Project
     // if any fields other than (requiredProjectFields + optionalProjectFields) are present on a Project then we throw an error
     optionalProjectFields: ["name", "dependsOn", "files", "extraFilesToBundle", "filesToClean", "aggregateBundle",
-        "generateTyping", "outputFolder", "dumpCompileInfo"],
+        "generateTyping", "outputFolder", "dumpCompiledFiles"],
 
     // For build config debugging purposes; defines the set of required fields on a ProjectGroup; if any are missing then we throw an error
     requiredProjectGroupFields: [],
