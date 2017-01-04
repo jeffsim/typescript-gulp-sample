@@ -7,7 +7,6 @@ var concat = require("gulp-concat"),
     glob = require("glob"),
     gulp = require("gulp"),
     gulpIf = require("gulp-if"),
-    plumber = require("gulp-plumber"),
     preservetime = require("gulp-preservetime"),
     rename = require("gulp-rename"),
     sourcemaps = require("gulp-sourcemaps"),
@@ -35,6 +34,8 @@ var bu = {
         // Avoid spamming 'stopping build...' messages
         bu.warnedStoppingBuild = false;
 
+        // Avoid spamming "additional errors filtered" messagse (due to more errors than buildSettings.maxErrorsToOutput)
+        bu.loggedMoreErrors = false;
     },
 
     // For a single given project, build it, then minify it, and then generate a d.ts file for it (as needed)
@@ -112,12 +113,13 @@ var bu = {
             // Initialize sourcemap generation
             .pipe(sourcemaps.init())
 
-            // track if errors occurred
-            .pipe(plumber({ errorHandler: bu.caughtCompileError }))
-
             // Do the actual transpilation from Typescript to Javascript.
             // Specify a custom error reporter so that we can output full filepaths to the output window (making them clickable)
-            .pipe(project.ts(bu.customTSErrorReporter));
+            // We'll also cancel subsequent project builds in customTSErrorReporter if so specified in buildSettings.
+            .pipe(project.ts(bu.typescriptErrorReporter));
+
+        if (bu.buildCancelled)
+            return bu.getCompletedStream();
 
         var separateOutputFolder = project.outputFolder && (project.buildFolder != project.outputFolder);
         var buildActions = [];
@@ -165,9 +167,6 @@ var bu = {
             // Initialize Sourcemap generation, telling it to load existing sourcemap (from the already-built *-debug.js file(s))
             .pipe(sourcemaps.init({ loadMaps: true }))
 
-            // track if errors occurred
-            .pipe(plumber({ errorHandler: bu.caughtCompileError }))
-
             // Strip //debugstart and //debugend and everything in between from -min builds.
             .pipe(bu.stripDebugStartEnd())
 
@@ -175,10 +174,7 @@ var bu = {
             .pipe(rename(project.minBundleFilename))
 
             // Minify the project
-            // TODO: the call to plumber above is swallowing errors in uglify; I'm not sure why
-            // it's swallowing those but not compiler errors in the ts call above.  For now,
-            // output the error.  Note that bu.caughCompilerError is still called
-            .pipe(uglify().on("error", (error) => bu.logUglifyError(error, sourceDebugBundle)))
+            .pipe(uglify().on("error", (error) => bu.uglifyErrorReporter(error, sourceDebugBundle)))
 
             // Write sourcemaps into the folder(s) set by the following gulp.dest call
             .pipe(sourcemaps.write(".", {
@@ -199,11 +195,32 @@ var bu = {
 
     // Custom Typescript reporter to output full filepaths so that build output window is clickable
     // NOTE: Errors in the console window are still not clickable; this only impacts the build window
-    customTSErrorReporter: {
+    typescriptErrorReporter: {
         error: function (error, ts) {
-            bu.logError(bu.getClickableErrorMessage(error));
+            bu.handleError(error, () => bu.logError(bu.getClickableErrorMessage(error)));
         },
         finish: function (results) {
+        }
+    },
+
+    uglifyErrorReporter: function (error, errorSourceFile) {
+        bu.handleError(error, () => bu.logUglifyError(error, errorSourceFile));
+    },
+
+    // call the callback IFF the caller should output an error.
+    handleError: function (error, doOutputCallback) {
+        bu.numCompileErrors++;
+        bu.errorList.push(error);
+        if (bu.numCompileErrors <= buildSettings.maxErrorsToOutput)
+            doOutputCallback();
+        else if (!bu.loggedMoreErrors) {
+            bu.logError("... additional errors filtered out");
+            bu.loggedMoreErrors = true;
+        }
+        if (buildSettings.stopBuildOnError && !bu.warnedStoppingBuild) {
+            bu.log("Stopping build...");
+            bu.buildCancelled = true;
+            bu.warnedStoppingBuild = true;
         }
     },
 
@@ -211,12 +228,12 @@ var bu = {
     //      Duality\Editor\Editor.ts(175,9): error TS2304: Cannot find name 'GLStateStore'.
     // To fix this, we play with the error message so that we get a full path; something more like this:
     //      C:\dev\Duality\Editor\Editor.ts(175,9): error TS2304: Cannot find name 'GLStateStore'.
-    getClickableErrorMessage(error) {
+    getClickableErrorMessage: function (error) {
         // regexp to extract fields
         var re = /(.*)\((\d+),(\d+)\): (.*): (.*)$/gm.exec(error.message);
         if (!re || re.length < 5) {
             // failed to match
-            bu.logError("Error in customTSErrorReporter; failed to match message '" + error.message + "'.");
+            bu.logError("Error in getClickableErrorMessage; failed to match message '" + error.message + "'.");
             return error.message;
         } else {
             var relativePathAndFilename = re[1];
@@ -226,18 +243,6 @@ var bu = {
             var errorMessage = re[5];
             return "    " + error.fullFilename + ":" + errorLine + ":" + errorCol + ": " + errorName + ": " + errorMessage;
         }
-    },
-
-    caughtCompileError: function (error) {
-        bu.numCompileErrors++;
-        bu.errorList.push(error);
-        if (buildSettings.stopBuildOnError && !bu.warnedStoppingBuild) {
-            bu.buildCancelled = true;
-            bu.warnedStoppingBuild = true;
-            bu.log("Stopping build...");
-        }
-        this.emit('end');
-        return false;
     },
 
     // Generates .d.ts definition file for a single project
@@ -657,16 +662,16 @@ var bu = {
                     let typingSrc = bu.joinPath(dependentProject.buildFolder, "typings/*.d.ts")
                     let typingDest = bu.joinPath(project.path, "typings");
 
-                    if (buildSettings.debugSettings && !buildSettings.debugSettings.allowEmptyFolders) {
+                    if (!buildSettings.allowEmptyFolders) {
                         // verify that there is something in the lib folder
                         // var numFiles = glob.sync(libSrc).length;
                         // bu.assert(numFiles > 0, "No lib files found for dependent project '" + dependentProject.name +
-                        //     "' in folder '" + dependentProject.buildFolder + "'.  If this is expected behavior, then set buildSettings.debug.allowEmptyFolders:true");
+                        //     "' in folder '" + dependentProject.buildFolder + "'.  If this is expected behavior, then set buildSettings.allowEmptyFolders:true");
 
                         // verify there is something in the typing folder
                         var numFiles = glob.sync(typingSrc).length;
                         bu.assert(numFiles > 0, "No typing found for dependent project '" + dependentProject.name +
-                            "' in folder '" + dependentProject.buildFolder + "/typing'.  If this is expected behavior, then set buildSettings.debug.allowEmptyFolders:true");
+                            "' in folder '" + dependentProject.buildFolder + "/typing'.  If this is expected behavior, then set buildSettings.allowEmptyFolders:true");
                     }
                     // buildActions.push(() => bu.copyFile(libSrc, libDest));
                     buildActions.push(() => bu.copyFile(typingSrc, typingDest));
@@ -904,7 +909,7 @@ var bu = {
                         // if a project is pure JS (not TS files) then numFiles can be zero IFF allowJs=true
                         if (!(numFiles == 0 && projectTS.options.allowJs))
                             bu.assert(numFiles > 0, "No .ts files found for project '" + projectId +
-                                "'.  If this is expected behavior, then set buildSettings.debug.allowEmptyFolders:true, OR " +
+                                "'.  If this is expected behavior, then set buildSettings.allowEmptyFolders:true, OR " +
                                 "if this project only has JS files, then set allowJs:true in the project's tsconfig.json file");
                     }
 

@@ -6,24 +6,27 @@ var buildSettings = {
     // Set this to enable compile-time debug checking; e.g. for unexpected situations like missing tsconfig.json file
     debug: true,
     debugSettings: {
-        // By default, if a project has no transpiled files in it then we assume error in path.  You can disable that 
-        // error by enabling allowEmptyFolders
-        // allowEmptyFolders: true
-
         // By default, if it's a debug build then we propose disabling debug once the build env is stable for perf
         // reasons.  If you want perma-debug builds, then you can disable that warning by setting this to false.
         warnIfDebugBuild: true,
-
-        // We re-output all encountered compiler errors at the end of the build; this is useful for large envs with
-        // multiple projects.  For smaller projects it's redundant though, and can be disabled.
-        outputErrorsAtEnd: true,
-
-        // By default we only output summary info about errors encountered; if you need more details, set this to true
-        verboseErrorOutput: false,
     },
 
-    // If true, then stop building when an error is encountered.
+    // By default, if a project has no transpiled files in it then we assume error in path.  You can disable that 
+    // error by enabling allowEmptyFolders
+    // allowEmptyFolders: true
+
+    // We re-output all encountered compiler errors at the end of the build; this is useful for large envs with
+    // multiple projects.  For smaller projects it's redundant though, and can be disabled.
+    reoutputErrorsAtEnd: true,
+
+    // By default we only output summary info about errors encountered; if you need more details, set this to true
+    verboseErrorOutput: false,
+
+    // If true, then stop building subsequent projects when an error is encountered.
     stopBuildOnError: true,
+
+    // Limit the maximum number of errors output to console.
+    maxErrorsToOutput: 10,
 
     // Minified builds can strip debug checks from output js for perf.  To indicate that a block should be stripped,
     // surround it with the following strings.  grep on DEBUGSTART in this project to see an example
