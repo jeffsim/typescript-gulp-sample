@@ -160,10 +160,9 @@ function buildAll() {
 // a new build-all if so.
 function onBuildCompleted() {
     globals.isBuilding = false;
-    if (bu.buildCancelled)
-        bu.log(bu.getTimeString(new Date()) + " Build cancelled", true);
-    else if (bu.numCompileErrors > 0) {
-        bu.log(bu.getTimeString(new Date()) + " Build completed, but with " + bu.numCompileErrors + " errors", true);
+    if (bu.numCompileErrors > 0) {
+        if (!bu.buildCancelled)
+            bu.log(bu.getTimeString(new Date()) + " Build completed, but with " + bu.numCompileErrors + " errors", true);
         if (buildSettings.reoutputErrorsAtEnd) {
             if (buildSettings.verboseErrorOutput)
                 bu.logError(bu.errorList);
@@ -174,7 +173,7 @@ function onBuildCompleted() {
                 for (var error of bu.errorList) {
                     bu.logError(bu.getClickableErrorMessage(error));
                     if (numOutput++ >= buildSettings.maxErrorsToOutput) {
-                        bu.log("... + " + (bu.errorList.length - numOutput) + " more errors.", true);
+                        bu.log("... +" + (bu.errorList.length - numOutput) + " more errors.", true);
                         break;
                     }
                 }
