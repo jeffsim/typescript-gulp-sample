@@ -106,6 +106,9 @@ var bu = {
         // TODO (CLEANUP): is the base:"." necessary, or is that the default value already?
         var tsResult = gulp.src(filesToCompile, { base: "." })
 
+            // Output debug info if set in project
+            .pipe(gulpIf(project.dumpCompiledFiles, bu.outputFilesInStream("DEBUGINFO(" + project.name + "):COMPILEDFILES")))
+
             // Initialize sourcemap generation
             .pipe(sourcemaps.init())
 
@@ -136,7 +139,7 @@ var bu = {
         if (project.ts.options.declaration) {
             buildActions.push(() => tsResult.dts
                 .pipe(rename(project.typingBundleFilename))
-            .pipe(gulp.dest(bu.joinPath(project.buildFolder, "typings"))));
+                .pipe(gulp.dest(bu.joinPath(project.buildFolder, "typings"))));
         }
         return bu.runParallel(buildActions).on("end", () => taskTracker.end());
     },
@@ -175,7 +178,7 @@ var bu = {
             // TODO: the call to plumber above is swallowing errors in uglify; I'm not sure why
             // it's swallowing those but not compiler errors in the ts call above.  For now,
             // output the error.  Note that bu.caughCompilerError is still called
-            .pipe(uglify()).on("error", (error) => bu.logError("ERROR (" + error.name + "): " + error.message + " (" + error.fileName + ")"))
+            .pipe(uglify().on("error", (error) => bu.logUglifyError(error, sourceDebugBundle)))
 
             // Write sourcemaps into the folder(s) set by the following gulp.dest call
             .pipe(sourcemaps.write(".", {
@@ -569,7 +572,7 @@ var bu = {
         return through.obj(function (file, enc, callback) {
             // we compile d.ts files, but don't babble about them here.
             if (file.relative.indexOf(".d.ts") == -1)
-                bu.log("[" + taskName + "]: File in stream: " + file.relative);
+                bu.log("[" + taskName + "] " + file.relative);
 
             this.push(file);
             return callback();
@@ -584,6 +587,13 @@ var bu = {
 
     logError: function (string) {
         bu.log(string, true);
+    },
+
+    logUglifyError: function (error, sourceFile) {
+        // NOTE: uglify's error object includes the correct error loc/col, but passes the destination (-.min.js) for
+        // the filename.  Odd.  we output sourceFile instead here.
+        bu.log("ERROR (" + error.name + "): " + error.message + ".  " + sourceFile + "(" + error.cause.line + "," + error.cause.col + "): " +
+            error.cause.message, true);
     },
 
     // requireUncached - allows runtime reloading of required modules; e.g. when buildSEttings changes
@@ -641,23 +651,24 @@ var bu = {
             // Copy any dependent projects
             if (project.dependsOn)
                 for (var dependentProject of project.dependsOn) {
-                    let libSrc = bu.joinPath(dependentProject.buildFolder, "**/*.js*")
-                    let libDest = bu.joinPath(project.path, "lib");
+                    // NOTE: For now, dependsOn only copies typing info.  If I/you want it to also copy libs then uncomment the following two lines:
+                    // let libSrc = bu.joinPath(dependentProject.buildFolder, "**/*.js*")
+                    // let libDest = bu.joinPath(project.path, "lib");
                     let typingSrc = bu.joinPath(dependentProject.buildFolder, "typings/*.d.ts")
                     let typingDest = bu.joinPath(project.path, "typings");
 
                     if (buildSettings.debugSettings && !buildSettings.debugSettings.allowEmptyFolders) {
                         // verify that there is something in the lib folder
-                        var numFiles = glob.sync(libSrc).length;
-                        bu.assert(numFiles > 0, "No lib files found for dependent project '" + dependentProject.name +
-                            "' in folder '" + dependentProject.buildFolder + "'.  If this is expected behavior, then set buildSettings.debug.allowEmptyFolders:true");
+                        // var numFiles = glob.sync(libSrc).length;
+                        // bu.assert(numFiles > 0, "No lib files found for dependent project '" + dependentProject.name +
+                        //     "' in folder '" + dependentProject.buildFolder + "'.  If this is expected behavior, then set buildSettings.debug.allowEmptyFolders:true");
 
                         // verify there is something in the typing folder
-                        numFiles = glob.sync(typingSrc).length;
+                        var numFiles = glob.sync(typingSrc).length;
                         bu.assert(numFiles > 0, "No typing found for dependent project '" + dependentProject.name +
                             "' in folder '" + dependentProject.buildFolder + "/typing'.  If this is expected behavior, then set buildSettings.debug.allowEmptyFolders:true");
                     }
-                    buildActions.push(() => bu.copyFile(libSrc, libDest));
+                    // buildActions.push(() => bu.copyFile(libSrc, libDest));
                     buildActions.push(() => bu.copyFile(typingSrc, typingDest));
                 }
         }
@@ -759,7 +770,8 @@ var bu = {
 
     // For build config debugging purposes; defines the set of optional fields on a Project
     // if any fields other than (requiredProjectFields + optionalProjectFields) are present on a Project then we throw an error
-    optionalProjectFields: ["name", "dependsOn", "files", "extraFilesToBundle", "filesToClean", "aggregateBundle", "generateTyping", "outputFolder"],
+    optionalProjectFields: ["name", "dependsOn", "files", "extraFilesToBundle", "filesToClean", "aggregateBundle",
+        "generateTyping", "outputFolder", "dumpCompileInfo"],
 
     // For build config debugging purposes; defines the set of required fields on a ProjectGroup; if any are missing then we throw an error
     requiredProjectGroupFields: [],
@@ -1047,7 +1059,8 @@ var bu = {
             .pipe(sourcemaps.init({ loadMaps: true }))
             .pipe(gulpIf(!minify, concat(bundle.debugFilename)))
             .pipe(gulpIf(minify, rename(bundle.minFilename)))
-            .pipe(gulpIf(minify, uglify()))
+            .pipe(gulpIf(minify, uglify().on("error", (error) => bu.logUglifyError(error))))
+
             .pipe(sourcemaps.write(".", {
                 includeContent: false, sourceRoot: "/",
 
