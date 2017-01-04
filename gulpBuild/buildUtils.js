@@ -229,8 +229,9 @@ var bu = {
     // To fix this, we play with the error message so that we get a full path; something more like this:
     //      C:\dev\Duality\Editor\Editor.ts(175,9): error TS2304: Cannot find name 'GLStateStore'.
     getClickableErrorMessage: function (error) {
+
         // regexp to extract fields
-        var re = /(.*)\((\d+),(\d+)\): (.*): (.*)$/gm.exec(error.message);
+        var re = /(.*)\((\d+),(\d+)\): (.*): ([\s\S]*)$/gm.exec(error.message);
         if (!re || re.length < 5) {
             // failed to match
             bu.logError("Error in getClickableErrorMessage; failed to match message '" + error.message + "'.");
