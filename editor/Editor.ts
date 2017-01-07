@@ -1,6 +1,4 @@
 /// <reference path="controls/Visual.ts"/>
-/// <reference path="controls/Label.ts"/>
-/// <reference path="controls/TextBox.ts"/>
 
 namespace Duality {
     export class Editor extends Visual {
