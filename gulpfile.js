@@ -99,11 +99,12 @@ function clean() {
                 project.dependsOn.forEach((dependency) => {
                     // Get the list of files that were copied over from the dependent project into this project's ./lib
                     // folder and add them.  Include "*" to get .js.map as well
-                    filesToDelete.push(bu.joinPath(project.path, "lib", dependency.debugBundleFilename + "*"));
-                    filesToDelete.push(bu.joinPath(project.path, "lib", dependency.minBundleFilename + "*"));
-
-                    // Add the dependent project's dts file (if any)
-                    if (dependency.generateTyping || dependency.ts.options.declaration)
+                    if (project.copyDependencyLibs) {
+                        filesToDelete.push(bu.joinPath(project.path, "lib", dependency.debugBundleFilename + "*"));
+                        filesToDelete.push(bu.joinPath(project.path, "lib", dependency.minBundleFilename + "*"));
+                    }
+                    // Add the dependent project's d.ts file (if any)
+                    if (dependency.generateTyping || (dependency.ts && dependency.ts.options.declaration))
                         filesToDelete.push(bu.joinPath(project.path, "typings", dependency.typingBundleFilename));
                 });
             }

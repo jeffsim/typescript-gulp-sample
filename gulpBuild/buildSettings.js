@@ -26,7 +26,7 @@ var buildSettings = {
     stopBuildOnError: true,
 
     // Limit the maximum number of errors output to console.
-    maxErrorsToOutput: 10,
+    maxErrorsToOutput: 20,
 
     // Minified builds can strip debug checks from output js for perf.  To indicate that a block should be stripped,
     // surround it with the following strings.  grep on DEBUGSTART in this project to see an example

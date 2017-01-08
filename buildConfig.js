@@ -72,6 +72,24 @@ function initialize() {
     //  outputFolder: string        Where the resultant bundled .js file is saved. Typical override: "/dist"
     //  generateTyping: boolean     Set to true to generate .d.ts file and save to <project.outputFolder>/typings
     //  [debug|min|typing]BundleFilename: string      Names of output bundle files (if bundled)
+    //  dependsOn: project[]        An array of previously-defined projects which Project A depends on.  Inclusion of a
+    //                              project in this array has two impacts:
+    //                                  1. The dependent project's d.ts file is copied into the Project A's './typing'
+    //                                  2. The dependent project is built before Project A
+    //                              NOTE: Ambient typing searching *seems* to stop at the point of a tsconfig.json file,
+    //                              So if a project specifies its own tsconfig.json, then you'll need any ambient typing
+    //                              to be defined at that folder level or below.
+    //  copyDependencyLibs?: bool   Project A can define 'dependsOn' projects [B,C,...] as per above; those dependent
+    //                              projects' d.ts files are automatically copied over to project A so that it gets
+    //                              ambient typing info.  By default, we don't copy the dependent projects' output js
+    //                              files over, as we assume that project A will reference it in /dist directly.  This
+    //                              approach minimizes duplicate copies (and git messiness) for a project with libs and
+    //                              samples.  However, if you have a setup like that, and the samples are intended to
+    //                              be completely standalone (e.g. a webserver points directly at their folder, and
+    //                              they can't see "/dist"), then you can override that by setting copyDependencyLibs
+    //                              to true.  You can do this directly on an individual project, or in the project
+    //                              defaults here.   You'll get duplicate copies of 'projectB-debug.js' in your repo,
+    //                              but project A will be completely standalone.  Defaults to false
     //
     // Structure of bundleProjectsTogether:
     //  outputFolder: string        Where to place the bundled file
@@ -275,16 +293,14 @@ function initialize() {
     // Defines all of the samples that are built
     buildConfig.projectGroups.samples = {
 
-        // All projects in this group have these files copied into their sample folders.  Built files typically go here.
-        filesToPrecopyToAllProjects: [{
-            src: bu.joinPath(buildSettings.distPath, "typings", buildConfig.aggregateBundles.duality.typingFilename),
-            dest: "typings"
-        }],
-
         // project overrides that are applied to all projects in this projectGroup
         projectDefaults: {
             // Because I want samples to be more 'standalone', built output goes into the sample folder
-            buildRootFolder: "."
+            buildRootFolder: ".",
+
+            // All samples depend on duality-debug.js.  'dependsOn' says (1) copy duality.d.ts into the project's
+            // ./typing folder, and (2) don't build the project before the duality bundle
+            dependsOn: [buildConfig.aggregateBundles.duality],
         },
 
         projects: {
@@ -295,8 +311,15 @@ function initialize() {
                 path: "samples/testApp2",
 
                 // This test uses the threeJS plugin that we build, so add a dependsOn reference so that the plugin's
-                // built .js and .d.ts files get copied over to this project's folder
+                // built .d.ts files get copied over to this project's folder
                 dependsOn: [buildConfig.projectGroups.plugins.projects.threeJS],
+
+                // In order to minimize duplicate copies of output files, Projects normally just reference dependencies
+                // in '/dist'.  However, if a Project is completely standalone (e.g. a sample that webserver points
+                // directly at and which can't reference a '/dist' folder above it), then you can set copyDependencyLibs
+                // to true and the dependencies' .js files are copied in addition to the .d.ts files.
+                // TODO: Ideally couple this to each dependency so that project can pick-and-choose.
+                copyDependencyLibs: true,
 
                 // Add testJS.js to the bundle so that it doesn't have to be explicitly included by index.html
                 extraFilesToBundle: ["testJS.js"],

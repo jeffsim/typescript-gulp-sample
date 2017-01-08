@@ -662,24 +662,31 @@ var bu = {
             // Copy any dependent projects
             if (project.dependsOn)
                 for (var dependentProject of project.dependsOn) {
-                    // NOTE: For now, dependsOn only copies typing info.  If I/you want it to also copy libs then uncomment the following two lines:
-                    // let libSrc = bu.joinPath(dependentProject.buildFolder, "**/*.js*")
-                    // let libDest = bu.joinPath(project.path, "lib");
-                    let typingSrc = bu.joinPath(dependentProject.buildFolder, "typings/*.d.ts")
+                    // The dependency could either be another project or it could be an aggregateBundle
+                    // TODO (CLEANUP): Make aggregateBundles just be another type of project.
+                    let libSrc, libDest;
+                    if (project.copyDependencyLibs) {
+                        libSrc = bu.joinPath(dependentProject.outputFolder, "**/*.js*")
+                        libDest = bu.joinPath(project.path, "lib");
+                    }
+                    let typingSrc = bu.joinPath(dependentProject.outputFolder, "typings/*.d.ts")
                     let typingDest = bu.joinPath(project.path, "typings");
 
                     if (!buildSettings.allowEmptyFolders) {
-                        // verify that there is something in the lib folder
-                        // var numFiles = glob.sync(libSrc).length;
-                        // bu.assert(numFiles > 0, "No lib files found for dependent project '" + dependentProject.name +
-                        //     "' in folder '" + dependentProject.buildFolder + "'.  If this is expected behavior, then set buildSettings.allowEmptyFolders:true");
+                        if (project.copyDependencyLibs) {
 
+                            // verify that there is something in the lib folder
+                            var numFiles = glob.sync(libSrc).length;
+                            bu.assert(numFiles > 0, "No lib files found for dependent project '" + dependentProject.name +
+                                "' in folder '" + dependentProject.buildFolder + "'.  If this is expected behavior, then set buildSettings.allowEmptyFolders:true");
+                        }
                         // verify there is something in the typing folder
                         var numFiles = glob.sync(typingSrc).length;
                         bu.assert(numFiles > 0, "No typing found for dependent project '" + dependentProject.name +
                             "' in folder '" + dependentProject.buildFolder + "/typing'.  If this is expected behavior, then set buildSettings.allowEmptyFolders:true");
                     }
-                    // buildActions.push(() => bu.copyFile(libSrc, libDest));
+                    if (project.copyDependencyLibs)
+                        buildActions.push(() => bu.copyFile(libSrc, libDest));
                     buildActions.push(() => bu.copyFile(typingSrc, typingDest));
                 }
         }
@@ -782,7 +789,7 @@ var bu = {
     // For build config debugging purposes; defines the set of optional fields on a Project
     // if any fields other than (requiredProjectFields + optionalProjectFields) are present on a Project then we throw an error
     optionalProjectFields: ["name", "dependsOn", "files", "extraFilesToBundle", "filesToClean", "aggregateBundle",
-        "generateTyping", "outputFolder", "dumpCompiledFiles"],
+        "generateTyping", "outputFolder", "dumpCompiledFiles", "copyDependencyLibs"],
 
     // For build config debugging purposes; defines the set of required fields on a ProjectGroup; if any are missing then we throw an error
     requiredProjectGroupFields: [],

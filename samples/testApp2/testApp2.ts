@@ -12,7 +12,7 @@ setTimeout(function () {
   $("body").html("I am test app 2");
 
   // Test local plugin
-  var v2 = new PluginTJS.Test();
+  var v2 = new MyPlugin.PluginTJS();
   v2.test();
 
   // Call the javascript function
