@@ -47,8 +47,6 @@ var bu = {
         if (skipStream)
             return skipStream;
 
-        project.ts = tsc.createProject(project.projectGroup.tsConfigFile || bu.joinPath(project.path, "tsconfig.json"));
-
         // Build the Project; then in parallel minify it and build d.ts file (as needed).
         return bu.runSeries([
             // First, build the project.  This transpiles .ts files into .js files and copies result to
@@ -123,18 +121,17 @@ var bu = {
 
         var separateOutputFolder = project.outputFolder && (project.buildFolder != project.outputFolder);
         var buildActions = [];
-        var hasOut = project.ts.options.out || project.ts.options.outFile;
         buildActions.push(() => tsResult.js
 
             // Alright, I'm getting out over the tips of my skis a bit here, but making some assumptions:
             // If the tsconfig specified an 'out' file, then we assume that the compiler will handle bundling for us.
             // If the tsconfig doesn't have an 'out' file, then we do the bundling, because we always require a bundle here.
-            .pipe(gulpIf(hasOut, rename(project.debugBundleFilename), concat(project.debugBundleFilename)))
+            .pipe(gulpIf(project.hasOut, rename(project.debugBundleFilename), concat(project.debugBundleFilename)))
 
             // Write sourcemaps into the folder(s) set by the following gulp.dest call
             .pipe(sourcemaps.write(".", {
-                includeContent: false, sourceRoot: "/", mapSources: (path) =>{
-                     return hasOut ? bu.joinPath(project.path, path) : path;
+                includeContent: false, sourceRoot: "/", mapSources: (path) => {
+                    return project.hasOut ? bu.joinPath(project.path, path) : path;
                 }
             }))
 
@@ -173,7 +170,8 @@ var bu = {
             .pipe(sourcemaps.init({ loadMaps: true }))
 
             // Strip //debugstart and //debugend and everything in between from -min builds.
-            .pipe(bu.stripDebugStartEnd())
+            // TODO: Disabling for now; breaks the build :(
+            // .pipe(bu.stripDebugStartEnd())
 
             // Rename output to project.minBundleFilename
             .pipe(rename(project.minBundleFilename))
@@ -624,7 +622,9 @@ var bu = {
             // However, I want to specify custom start/end strings in buildSettings, so I can't use regexp literal notation.
             // So, I use 'new RegExp' instead
             var re = new RegExp(buildSettings.debugBlockStartText + "([\\s\\S]*?)" + buildSettings.debugBlockEndText, "gi");
-            file.contents = new Buffer(contents.replace(re, ""));
+
+            file.contents = new Buffer(contents.replace(re, "\r\n"));
+
             this.push(file);
             return callback();
         });
@@ -897,23 +897,32 @@ var bu = {
                 for (var i = 0; i < project.files.length; i++)
                     project.files[i] = bu.joinPath(project.path, project.files[i]);
 
+                // Go ahead and create the tsc object for the project.  I'd prefer to lazy-load these, but it needs to
+                // be loaded now so that we can examine its tsconfig options during the clean phase.  As long as we've
+                // loaded it, we might as well drop it onto the project object so that we don't have to reload it later
+                project.ts = tsc.createProject(project.projectGroup.tsConfigFile || bu.joinPath(project.path, "tsconfig.json"));
+
+                // Track if the project's tsconfig specified an '--out' or '--outFile' param; if so, then TSC will handle
+                // bundling for us, and we don't have to concat.
+                project.hasOut = project.ts.options.out || project.ts.options.outFile;
+
                 if (buildSettings.debug) {
                     // do various checks to validate the config file
+
+                    // Verify we can load the tsconfigFile
+                    bu.assert(project.ts, "Failed to load tsconfig.json for project '" + project + "'.");
+
                     // if projectgroup didn't specify a tsconfig.json file for all projects in it, then verify that this project's
                     // tsconfig.json file is in the project root
                     if (!projectGroup.tsConfigFile)
                         bu.assert(bu.fileExists(bu.joinPath(project.path, "tsconfig.json")), "tsconfig.json file not found in Project root('" + project.path + "') for Project '" + projectId + "'");
-
-                    // Verify we can load the tsconfigFile
-                    var projectTS = tsc.createProject(project.projectGroup.tsConfigFile || bu.joinPath(project.path, "tsconfig.json"));
-                    bu.assert(projectTS, "Failed to load tsconfig.json for project '" + project + "'.");
 
                     // Verify that there's at least one file to compile.
                     if (!buildSettings.debugSettings.allowEmptyFolders) {
                         var numFiles = 0;
                         project.files.forEach((fileGlob) => numFiles += glob.sync(fileGlob).length);
                         // if a project is pure JS (not TS files) then numFiles can be zero IFF allowJs=true
-                        if (!(numFiles == 0 && projectTS.options.allowJs))
+                        if (!(numFiles == 0 && project.ts.options.allowJs))
                             bu.assert(numFiles > 0, "No .ts files found for project '" + projectId +
                                 "'.  If this is expected behavior, then set buildSettings.allowEmptyFolders:true, OR " +
                                 "if this project only has JS files, then set allowJs:true in the project's tsconfig.json file");

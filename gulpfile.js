@@ -103,7 +103,7 @@ function clean() {
                     filesToDelete.push(bu.joinPath(project.path, "lib", dependency.minBundleFilename + "*"));
 
                     // Add the dependent project's dts file (if any)
-                    if (dependency.generateTyping)
+                    if (dependency.generateTyping || dependency.ts.options.declaration)
                         filesToDelete.push(bu.joinPath(project.path, "typings", dependency.typingBundleFilename));
                 });
             }
