@@ -663,10 +663,10 @@ var bu = {
                     // TODO (CLEANUP): Make aggregateBundles just be another type of project.
                     let libSrc, libDest;
                     if (project.copyDependencyLibs) {
-                        libSrc = bu.joinPath(dependentProject.outputFolder, "**/*.js*")
+                        libSrc = bu.joinPath(dependentProject.buildFolder, "**/*.js*")
                         libDest = bu.joinPath(project.path, "lib");
                     }
-                    let typingSrc = bu.joinPath(dependentProject.outputFolder, "typings/*.d.ts")
+                    let typingSrc = bu.joinPath(dependentProject.buildFolder, "typings/*.d.ts")
                     let typingDest = bu.joinPath(project.path, "typings");
 
                     if (!buildSettings.allowEmptyFolders) {
@@ -767,6 +767,10 @@ var bu = {
             bundle.outputFolder = buildSettings.distPath;
         // ensure bundle is rooted in the build root; otherwise, could end up in file system root if caller specifies something like "/dist"
         bundle.outputFolder = bu.joinPath(".", bundle.outputFolder);
+        
+        // Along with projects, Bundles can be set as 'dependsOn' dependencies.  We mimic a project so that it works
+        // cleanly.  TODO: Actually make bundles be projects.
+        bundle.buildFolder = bundle.outputFolder;
 
         // Set the output file names (if not already set in the bundle)
         bundle.debugFilename = bundle.debugFilename || (bundleNameVer + ".debug.js");

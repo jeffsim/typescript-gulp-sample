@@ -312,7 +312,10 @@ function initialize() {
 
                 // This test uses the threeJS plugin that we build, so add a dependsOn reference so that the plugin's
                 // built .d.ts files get copied over to this project's folder
-                dependsOn: [buildConfig.projectGroups.plugins.projects.threeJS],
+                dependsOn: [
+                    buildConfig.aggregateBundles.duality,
+                    buildConfig.projectGroups.plugins.projects.threeJS
+                ],
 
                 // In order to minimize duplicate copies of output files, Projects normally just reference dependencies
                 // in '/dist'.  However, if a Project is completely standalone (e.g. a sample that webserver points
