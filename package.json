@@ -11,6 +11,7 @@
     "fs": "0.0.1-security",
     "glob": "^7.1.1",
     "gulp": "^3.9.1",
+    "gulp-add-src": "^0.2.0",
     "gulp-concat": "^2.6.0",
     "gulp-if": "^2.0.2",
     "gulp-plumber": "^1.1.0",

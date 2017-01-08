@@ -1,3 +1,6 @@
+// The JS function needs to be declared
+declare var testMe;
+
 setTimeout(function () {
 
   console.log("i am test app 2");

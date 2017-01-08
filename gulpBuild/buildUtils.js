@@ -6,6 +6,7 @@ var concat = require("gulp-concat"),
     fs = require("fs"),
     glob = require("glob"),
     gulp = require("gulp"),
+    gulpAddSrc = require("gulp-add-src"),
     gulpIf = require("gulp-if"),
     preservetime = require("gulp-preservetime"),
     rename = require("gulp-rename"),
@@ -73,24 +74,18 @@ var bu = {
         if (bu.buildCancelled)
             return bu.getCompletedStream();
 
-        var taskTracker = new bu.TaskTracker("buildProject", project);
+        let taskTracker = new bu.TaskTracker("buildProject", project);
 
         // Create list of files to compile.  Combination of common files in the project group AND files in the project
-        var filesToCompile = project.files.slice();
+        let filesToCompile = project.files.slice();
         if (project.projectGroup.commonFiles)
             for (var commonFile of project.projectGroup.commonFiles)
                 filesToCompile.push(commonFile);
 
+        let extraFiles = [];
         if (project.extraFilesToBundle)
-            for (var file of project.extraFilesToBundle) {
-                // debugstart
-                if (buildSettings.debug) {
-                    if (file.indexOf(".js") != -1 && !project.ts.options.allowJs)
-                        throw Error("Including .js files via project.extraFilesToBundle requires that allowJs be set in the project's tsconfig.json");
-                }
-                // debugend
-                filesToCompile.push(bu.joinPath(project.path, file));
-            }
+            for (var file of project.extraFilesToBundle)
+                extraFiles.push(bu.joinPath(project.path, file));
 
         if (buildSettings.debug) {
             // verify files exist
@@ -103,10 +98,10 @@ var bu = {
         }
 
         // TODO (CLEANUP): is the base:"." necessary, or is that the default value already?
-        var tsResult = gulp.src(filesToCompile, { base: "." })
+        let tsResult = gulp.src(filesToCompile, { base: "." })
 
             // Output debug info if set in project
-            .pipe(gulpIf(project.dumpCompiledFiles, bu.outputFilesInStream("DEBUGINFO(" + project.name + "):COMPILEDFILES")))
+            .pipe(gulpIf(project.dumpCompiledFiles, bu.outputFilesInStream("DEBUGINFO-(" + project.name + ")-COMPILEDFILES")))
 
             // Initialize sourcemap generation
             .pipe(sourcemaps.init())
@@ -119,11 +114,13 @@ var bu = {
         if (bu.buildCancelled)
             return bu.getCompletedStream();
 
-        var separateOutputFolder = project.outputFolder && (project.buildFolder != project.outputFolder);
-        var buildActions = [];
+        let separateOutputFolder = project.outputFolder && (project.buildFolder != project.outputFolder);
+        let buildActions = [];
         buildActions.push(() => tsResult.js
 
-            // Alright, I'm getting out over the tips of my skis a bit here, but making some assumptions:
+            // If extra files to bundle were specified in the project definition, then include them prior to concat'ing.
+            .pipe(gulpIf(extraFiles.length > 0, gulpAddSrc.append(extraFiles)))
+            
             // If the tsconfig specified an 'out' file, then we assume that the compiler will handle bundling for us.
             // If the tsconfig doesn't have an 'out' file, then we do the bundling, because we always require a bundle here.
             .pipe(gulpIf(project.hasOut, rename(project.debugBundleFilename), concat(project.debugBundleFilename)))
