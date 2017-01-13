@@ -288,7 +288,7 @@ var bu = {
             bu.logError("Error (" + ex.name + ") in dtsGenerator: " + ex.message);
             stream.resume().end();
             if (buildSettings.stopBuildOnError) {
-                buildCancelled = true;
+                bu.buildCancelled = true;
                 bu.log("Stopping build...");
             }
             taskTracker.end();
@@ -304,7 +304,8 @@ var bu = {
 
         // testing - cancel all project builds if a file has changed
         if (bu.buildCancelled) {
-            bu.log("Cancelling project build...");
+            if (!bu.warnedStoppingBuild)
+                bu.log("Cancelling project build...");
             return bu.getCompletedStream();
         }
         bu.outputTaskHeader("Build " + projectGroup.name);

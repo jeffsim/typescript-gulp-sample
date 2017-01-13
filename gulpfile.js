@@ -105,7 +105,7 @@ function clean() {
                     }
                     // Add the dependent project's d.ts file (if any)
                     if (dependency.generateTyping || (dependency.ts && dependency.ts.options.declaration))
-                        filesToDelete.push(bu.joinPath(project.path, "typings", dependency.typingBundleFilename));
+                        filesToDelete.push(bu.joinPath(project.path, "typings", dependency.typingFilename));
                 });
             }
         }
