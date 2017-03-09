@@ -486,7 +486,7 @@ var bu = {
 
             // testing - cancel all project builds if a file has changed
             if (bu.buildCancelled)
-                i == toRun;
+                i = toRun;
 
             if (i == toRun)
                 stream.resume().end();
