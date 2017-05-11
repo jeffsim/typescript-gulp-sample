@@ -1,3 +1,6 @@
+# Note: There's a known issue where the build environment eventually dies 
+It's leaking something somewhere and the process eventually runs out of memory.  You just have to restart Watch at that point. 
+
 # typescript-gulp-sample
 This project demonstrates one way to setup a gulp-based development environment for Typescript with the following features:
 - Debug and minified builds
